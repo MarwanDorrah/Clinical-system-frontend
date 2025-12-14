@@ -59,14 +59,12 @@ export default function SuppliesPage() {
     }
     fetchSupplies();
     
-    // Check if action=add query parameter is present
     const action = searchParams.get('action');
     if (action === 'add') {
       setIsModalOpen(true);
     }
   }, []);
 
-  // Refetch when filters change
   useEffect(() => {
     if (!isLoading) {
       fetchSupplies();
@@ -78,11 +76,10 @@ export default function SuppliesPage() {
       setIsLoading(true);
       let data: Supply[];
       
-      // Use backend filtering for better performance
       if (categoryFilter !== 'all') {
         data = await supplyService.getByCategory(categoryFilter) as Supply[];
       } else if (stockFilter === 'low') {
-        data = await supplyService.getLowStock(10) as Supply[]; // Threshold: 10
+        data = await supplyService.getLowStock(10) as Supply[];
       } else {
         data = await supplyService.getAllSupplies() as Supply[];
       }
@@ -104,7 +101,6 @@ export default function SuppliesPage() {
   const filterSupplies = () => {
     let filtered = [...supplies];
 
-    // Search filter
     if (searchQuery) {
       filtered = filtered.filter(supply =>
         supply.supply_Name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -112,12 +108,10 @@ export default function SuppliesPage() {
       );
     }
 
-    // Category filter
     if (categoryFilter !== 'all') {
       filtered = filtered.filter(supply => supply.category === categoryFilter);
     }
 
-    // Stock filter
     if (stockFilter === 'low') {
       filtered = filtered.filter(supply => supply.quantity > 0 && supply.quantity <= 10);
     } else if (stockFilter === 'out') {
@@ -238,7 +232,6 @@ export default function SuppliesPage() {
 
     const quantityToUse = parseInt(transactionData.quantity);
     
-    // Validate quantity
     if (quantityToUse <= 0) {
       showAlert('error', 'Quantity must be greater than 0');
       return;

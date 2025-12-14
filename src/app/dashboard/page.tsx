@@ -37,13 +37,10 @@ export default function DashboardPage() {
     try {
       setIsLoading(true);
 
-      // Fetch patients
       const patients = await patientService.getAllPatients();
       
-      // Fetch appointments
       const appointments = await appointmentService.getAllAppointments() as Appointment[];
       
-      // For debugging: temporarily show all appointments if none match today
       const todayDate = new Date();
       const todayISO = todayDate.toISOString().split('T')[0];
       
@@ -53,9 +50,7 @@ export default function DashboardPage() {
         return aptDate === todayISO;
       });
       
-      // If no appointments for today, show next upcoming appointments
       if (todayAppts.length === 0 && appointments.length > 0) {
-        // Get upcoming appointments (sorted by date and time)
         const upcoming = appointments
           .filter(apt => apt.date)
           .sort((a, b) => {
@@ -63,18 +58,16 @@ export default function DashboardPage() {
             const dateB = new Date(b.date + ' ' + b.time);
             return dateA.getTime() - dateB.getTime();
           })
-          .slice(0, 6); // Show first 6 upcoming appointments
+          .slice(0, 6);
         todayAppts = upcoming;
       }
       
-      // Sort today's appointments by time
       const sortedTodayAppts = todayAppts.sort((a, b) => {
         const timeA = parseInt(a.time.split(':')[0]) * 60 + parseInt(a.time.split(':')[1]);
         const timeB = parseInt(b.time.split(':')[0]) * 60 + parseInt(b.time.split(':')[1]);
         return timeA - timeB;
       });
 
-      // Get week's appointments (next 7 days)
       const weekAppts: Record<string, Appointment[]> = {};
       const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       
@@ -90,7 +83,6 @@ export default function DashboardPage() {
         });
       }
 
-      // Fetch recent EHRs
       let recentRecords: any[] = [];
       try {
         const allEHRs = await ehrService.getAllEHRs();
@@ -99,18 +91,14 @@ export default function DashboardPage() {
         console.error('Error fetching EHRs:', error);
       }
 
-      // Fetch low stock and out of stock supplies (if doctor)
       let lowStock: Supply[] = [];
       let outOfStock: Supply[] = [];
       if (isDoctor()) {
         try {
-          // Fetch all supplies to check for out of stock
           const allSupplies = await supplyService.getAllSupplies() as Supply[];
           
-          // Filter out of stock items (quantity = 0)
           outOfStock = allSupplies.filter(supply => supply.quantity <= 0);
           
-          // Fetch low stock items (exclude out of stock items)
           const allLowStock = await supplyService.getLowStock(10) as Supply[];
           lowStock = allLowStock.filter(supply => supply.quantity > 0);
         } catch (error) {
@@ -123,7 +111,6 @@ export default function DashboardPage() {
       setRecentEHRs(recentRecords);
       setLowStockSupplies(lowStock.slice(0, 5));
 
-      // Calculate completed today (appointments before current time)
       const currentTime = new Date().getHours() * 60 + new Date().getMinutes();
       const completedToday = todayAppts.filter(apt => {
         const aptTime = parseInt(apt.time.split(':')[0]) * 60 + parseInt(apt.time.split(':')[1]);
@@ -138,10 +125,8 @@ export default function DashboardPage() {
         lowStockItems: lowStock.length,
       });
 
-      // Generate notifications (only for stock-related items)
       const notifs: Array<{id: number, type: string, message: string, time: string}> = [];
 
-      // Low stock alerts (only for doctors)
       if (isDoctor() && lowStock.length > 0) {
         notifs.push({
           id: 1,
@@ -151,7 +136,6 @@ export default function DashboardPage() {
         });
       }
 
-      // Out of stock alerts (only for doctors)
       if (isDoctor() && outOfStock.length > 0) {
         notifs.push({
           id: 2,

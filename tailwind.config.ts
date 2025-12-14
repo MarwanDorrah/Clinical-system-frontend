@@ -9,7 +9,6 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Medical Blues - Primary Brand Colors
         primary: {
           50: '#E6F2FF',
           100: '#CCE5FF',
@@ -22,7 +21,6 @@ export default {
           800: '#003366',
           900: '#001A33',
         },
-        // Semantic Colors
         success: {
           50: '#ECFDF5',
           100: '#D1FAE5',
@@ -51,7 +49,6 @@ export default {
           600: '#2563EB',
           700: '#1D4ED8',
         },
-        // Medical Accents
         medical: {
           mint: '#E0F2F1',
           lavender: '#F3E5F5',

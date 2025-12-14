@@ -32,7 +32,7 @@ export interface Patient {
   middle?: string | null;
   last: string;
   gender: string;
-  dob: string; // Backend returns ISO DateTime (YYYY-MM-DDTHH:mm:ss)
+  dob: string;
   phone?: string | null;
 }
 
@@ -63,16 +63,13 @@ export interface Doctor {
 }
 
 export interface Nurse {
-  nursE_ID: number; // ⚠️ Backend returns nursE_ID with capital E - keep for API compatibility
+  nursE_ID: number;
   nurse_ID?: number; // Alias for convenience
   name: string;
   phone: string;
   email: string;
 }
 
-/**
- * Helper function to get nurse ID regardless of naming convention
- */
 export const getNurseId = (nurse: Nurse): number => nurse.nursE_ID || nurse.nurse_ID || 0;
 
 export interface Appointment {
@@ -91,7 +88,7 @@ export interface Appointment {
 }
 
 export interface CreateAppointmentRequest {
-  date: string; // Format: "YYYY-MM-DD"
+  date: string;
   time: string; // Format: "HH:mm:ss"
   type: string;
   patient_ID: number;
@@ -101,7 +98,7 @@ export interface CreateAppointmentRequest {
 
 export interface UpdateAppointmentRequest {
   appointment_ID: number;
-  date: string; // Format: "YYYY-MM-DD"
+  date: string;
   time: string; // Format: "HH:mm:ss"
   type: string;
   patient_ID: number;
@@ -302,7 +299,6 @@ export interface EHR {
   ChangeLogs?: ChangeLog[];
 }
 
-// Helper to get EHR ID regardless of backend naming
 export const getEhrId = (ehr: EHR): number => ehr.ehr_ID || ehr.EHR_ID || 0;
 
 export interface DoctorBasicInfo {
@@ -331,28 +327,25 @@ export interface Supply {
   stockTransactions?: StockTransactionBasicInfo[];
 }
 
-// StockTransactionBasicInfo - used in Supply responses
 export interface StockTransactionBasicInfo {
   t_ID: number;
-  date: string; // ISO format from API
-  time: string; // HH:mm:ss
+  date: string;
+  time: string;
   quantity: number;
   doctor_ID: number;
   doctorName?: string;
 }
 
-// StockTransactionCreateRequest - for POST /StockTransaction
 export interface StockTransactionCreateRequest {
-  date: string; // Required: YYYY-MM-DD
-  time: string; // Required: HH:mm:ss
-  quantity: number; // Required: >= 1
+  date: string;
+  time: string;
+  quantity: number;
   doctor_ID: number; // Required
   supply_ID: number; // Required
 }
 
-// StockTransactionUpdateRequest - for PUT /StockTransaction/{id}
 export interface StockTransactionUpdateRequest {
-  t_ID: number; // Required: must match URL parameter
+  t_ID: number;
   date?: string;
   time?: string;
   quantity?: number;
@@ -360,16 +353,15 @@ export interface StockTransactionUpdateRequest {
   supply_ID?: number;
 }
 
-// StockTransactionResponse - full response with nested objects
 export interface StockTransaction {
   t_ID: number;
-  date: string; // ISO format: YYYY-MM-DDTHH:mm:ss
-  time: string; // HH:mm:ss
+  date: string;
+  time: string;
   quantity: number;
   doctor_ID: number;
   supply_ID: number;
-  doctor?: DoctorBasicInfo; // Nested doctor info
-  supply?: SupplyBasicInfo; // Nested supply info
+  doctor?: DoctorBasicInfo;
+  supply?: SupplyBasicInfo;
 }
 
 export interface ApiError {

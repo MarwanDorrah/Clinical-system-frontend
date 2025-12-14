@@ -81,7 +81,6 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
     }
   ];
 
-  // Filter navigation items based on user role
   const filteredItems = navigationItems.filter(item => 
     item.roles.includes(userRole || '')
   );
@@ -97,7 +96,6 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
     logout();
   };
 
-  // Auto-hide functionality
   useEffect(() => {
     const handleMouseEnter = () => {
       if (autoHideTimerRef.current) {
@@ -113,7 +111,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
         if (isOpen) {
           onToggle();
         }
-      }, 300); // Delay before auto-hiding
+      }, 300);
     };
 
     const sidebar = sidebarRef.current;
@@ -135,7 +133,6 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
 
   return (
     <>
-      {/* Sidebar */}
       <aside
         ref={sidebarRef}
         className={`fixed left-0 top-0 h-screen bg-white text-gray-800 transition-all duration-300 z-40 shadow-sm ${
@@ -143,7 +140,6 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
         }`}
       >
         <div className="flex flex-col h-full w-full overflow-hidden">
-          {/* Header - Home Icon */}
           <div className="flex items-center justify-center py-6 flex-shrink-0">
             <div className="relative group">
               <Link
@@ -165,7 +161,6 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
             </div>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2">
             <ul className="space-y-3">
               {filteredItems.slice(1).map((item) => {
@@ -213,7 +208,6 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
             </ul>
           </nav>
 
-          {/* User Info */}
           <div className="px-4 py-3 flex-shrink-0">
             <div className={`flex items-center gap-4 relative group ${isOpen ? 'justify-start' : 'justify-center'}`}>
               <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center font-semibold text-gray-700 flex-shrink-0">
@@ -238,7 +232,6 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
             </div>
           </div>
 
-          {/* Logout */}
           <div className="px-4 pb-6 pt-2">
             <div className="relative group">
               <button
@@ -267,7 +260,6 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
         </div>
       </aside>
 
-      {/* Overlay for mobile */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm"

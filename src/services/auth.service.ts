@@ -1,47 +1,15 @@
-/**
- * Authentication Service and JWT Utilities
- * 
- * JWT Configuration (from ClinicalDentistSystem API):
- * - Issuer: ClinicalDentistSystem
- * - Audience: ClinicalDentistSystemUsers
- * - ExpirationMinutes: 1440 (24 hours)
- * 
- * Token Claims:
- * - sub: User ID (int)
- * - email: User email
- * - name: Display name
- * - UserType: "Doctor" | "Nurse"
- * - role: "Doctor" | "Nurse"
- * - jti: JWT ID
- * - exp: Expiration (unix timestamp seconds)
- * - iss: Issuer
- * - aud: Audience
- * 
- * Security Notes:
- * - Using localStorage for dev/demo (XSS risk)
- * - Production: migrate to httpOnly, Secure cookies
- * - Always use HTTPS in production
- * - Implement CSP and input sanitization
- */
-
 interface TokenPayload {
-  sub: string; // userId from JwtRegisteredClaimNames.Sub
+  sub: string;
   email: string;
   name: string;
-  UserType: 'Doctor' | 'Nurse'; // Custom claim
-  role: 'Doctor' | 'Nurse'; // ClaimTypes.Role
+  UserType: 'Doctor' | 'Nurse';
+  role: 'Doctor' | 'Nurse';
   jti: string;
-  exp: number; // Unix timestamp in seconds
-  iss: string; // Issuer
-  aud: string; // Audience
+  exp: number;
+  iss: string;
+  aud: string;
 }
 
-/**
- * Enhanced JWT parsing with better error handling
- * Based on JWT Frontend Guide recommendations
- * @param token - JWT token string
- * @returns decoded payload or null if invalid
- */
 export function parseJwt(token: string): TokenPayload | null {
   try {
     if (!token || token.split('.').length !== 3) {
@@ -49,7 +17,6 @@ export function parseJwt(token: string): TokenPayload | null {
     }
 
     const payload = token.split('.')[1];
-    // Handle base64url encoding (- and _ characters)
     const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
     return JSON.parse(decoded);
   } catch (error) {
@@ -58,11 +25,6 @@ export function parseJwt(token: string): TokenPayload | null {
   }
 }
 
-/**
- * Decodes JWT token from localStorage and returns payload
- * Automatically clears expired tokens
- * @returns token payload or null if invalid/expired
- */
 function decodeToken(): TokenPayload | null {
   if (typeof window === 'undefined') return null;
   
@@ -72,9 +34,7 @@ function decodeToken(): TokenPayload | null {
   const payload = parseJwt(token);
   if (!payload) return null;
 
-  // Check if token is expired
   if (payload.exp && payload.exp * 1000 < Date.now()) {
-    // Token expired - clear storage
     console.warn('Token expired, clearing storage');
     clearAuthStorage();
     return null;
@@ -83,9 +43,6 @@ function decodeToken(): TokenPayload | null {
   return payload;
 }
 
-/**
- * Clear all authentication data from storage
- */
 function clearAuthStorage(): void {
   if (typeof window === 'undefined') return;
   
@@ -96,10 +53,6 @@ function clearAuthStorage(): void {
   localStorage.removeItem('doctorId');
 }
 
-/**
- * Get time remaining until token expiration
- * @returns milliseconds until expiration, or 0 if expired/invalid
- */
 export function getTokenTimeRemaining(): number {
   const payload = decodeToken();
   if (!payload?.exp) return 0;
@@ -111,20 +64,11 @@ export function getTokenTimeRemaining(): number {
   return remaining > 0 ? remaining : 0;
 }
 
-/**
- * Check if token will expire within specified minutes
- * @param minutes - number of minutes to check
- * @returns true if token expires within the timeframe
- */
 export function isTokenExpiringSoon(minutes: number = 5): boolean {
   const remaining = getTokenTimeRemaining();
   return remaining > 0 && remaining < (minutes * 60 * 1000);
 }
 
-/**
- * Get formatted time remaining string
- * @returns human-readable time remaining (e.g., "23 hours", "45 minutes")
- */
 export function getTokenTimeRemainingFormatted(): string {
   const ms = getTokenTimeRemaining();
   if (ms <= 0) return 'Expired';
@@ -139,10 +83,6 @@ export function getTokenTimeRemainingFormatted(): string {
   return 'Less than a minute';
 }
 
-/**
- * Checks if the current user is a doctor
- * @returns true if user is a doctor, false otherwise
- */
 export function isDoctor(): boolean {
   const payload = decodeToken();
   return payload?.role === 'Doctor' || payload?.UserType === 'Doctor';

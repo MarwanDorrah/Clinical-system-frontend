@@ -55,7 +55,6 @@ export default function AppointmentsPage() {
   useEffect(() => {
     fetchData();
     
-    // Check if action=add query parameter is present
     const action = searchParams.get('action');
     if (action === 'add') {
       setIsModalOpen(true);
@@ -100,7 +99,6 @@ export default function AppointmentsPage() {
     try {
       setIsLoading(true);
       
-      // Fetch data with individual error handling to prevent one failure from blocking all
       const results = await Promise.allSettled([
         appointmentService.getAllAppointments() as Promise<Appointment[]>,
         patientService.getAllPatients() as Promise<Patient[]>,
@@ -110,7 +108,6 @@ export default function AppointmentsPage() {
 
       const [appointmentsResult, patientsResult, doctorsResult, nursesResult] = results;
 
-      // Handle each result separately
       if (appointmentsResult.status === 'fulfilled') {
         setAppointments(appointmentsResult.value);
       } else {
@@ -135,7 +132,6 @@ export default function AppointmentsPage() {
         console.error('Failed to fetch nurses:', nursesResult.reason);
       }
 
-      // Check if any critical data failed to load
       if (
         appointmentsResult.status === 'rejected' ||
         patientsResult.status === 'rejected' ||
@@ -168,7 +164,6 @@ export default function AppointmentsPage() {
         doctor_ID: appointment.doctor_ID.toString(),
         nurse_ID: appointment.nurse_ID.toString(),
       });
-      // Find and set the selected patient
       const patient = patients.find(p => p.patient_ID === appointment.patient_ID);
       setSelectedPatient(patient || null);
     } else {
@@ -190,7 +185,6 @@ export default function AppointmentsPage() {
     setSelectedAppointment(appointment);
     setIsDetailModalOpen(true);
     
-    // Fetch patient EHR
     if (appointment.patient_ID) {
       try {
         const ehrData = await ehrService.getByPatient(appointment.patient_ID) as EHR[];
@@ -235,25 +229,20 @@ export default function AppointmentsPage() {
   };
 
   const getAppointmentsForSelectedDate = () => {
-    // Extract just the date part (YYYY-MM-DD) from the appointment date
-    // Backend returns ISO format like "2024-12-22T00:00:00"
     const selectedDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
     
     return appointments.filter((apt) => {
-      // Extract date part from ISO datetime string
       const appointmentDateStr = apt.date.split('T')[0];
       return appointmentDateStr === selectedDateStr;
     });
   };
 
-  // Generate auto reference number
   const generateRefNumber = () => {
     const year = new Date().getFullYear();
     const random = Math.floor(Math.random() * 999999).toString().padStart(6, '0');
     return `APT-${year}-${random}`;
   };
 
-  // Calculate age from DOB
   const calculateAge = (dob: string) => {
     const birthDate = new Date(dob);
     const today = new Date();
@@ -265,7 +254,6 @@ export default function AppointmentsPage() {
     return age;
   };
 
-  // Get patient's last visit
   const getLastVisit = (patientId: number) => {
     const patientApts = appointments.filter(apt => 
       apt.patient_ID === patientId && 
@@ -276,7 +264,6 @@ export default function AppointmentsPage() {
     return sorted[0];
   };
 
-  // Check for scheduling conflicts
   const checkConflict = useMemo(() => {
     if (!formData.date || !formData.time || !formData.doctor_ID) return null;
 
@@ -308,7 +295,6 @@ export default function AppointmentsPage() {
     e.preventDefault();
     setModalError('');
 
-    // Validate all required fields
     if (!formData.patient_ID || formData.patient_ID === '0' || formData.patient_ID === '') {
       setModalError('Please select a patient');
       return;
@@ -340,7 +326,6 @@ export default function AppointmentsPage() {
         const doctorId = parseInt(formData.doctor_ID);
         const nurseId = parseInt(formData.nurse_ID);
 
-        // Validate parsed integers
         if (isNaN(patientId)) {
           setModalError('Invalid patient ID. Please select a patient again.');
           console.error('Patient ID parse error:', formData.patient_ID, '→', patientId);
@@ -378,7 +363,6 @@ export default function AppointmentsPage() {
         const doctorId = parseInt(formData.doctor_ID);
         const nurseId = parseInt(formData.nurse_ID);
 
-        // Validate parsed integers with specific error messages
         if (isNaN(patientId)) {
           setModalError('Invalid patient ID. Please select a patient again.');
           console.error('Patient ID parse error:', formData.patient_ID, '→', patientId);
@@ -395,7 +379,6 @@ export default function AppointmentsPage() {
           return;
         }
 
-        // Don't send ref_Num - backend will auto-generate it
         const createData = {
           date: formData.date,
           time: timeInputToAPI(formData.time),
@@ -420,7 +403,6 @@ export default function AppointmentsPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      // First check if there are any EHR records associated with this appointment
       const appointment = appointments.find(apt => apt.appointment_ID === id);
       if (appointment) {
         const ehrRecords = await ehrService.getByPatient(appointment.patient_ID);
@@ -436,7 +418,6 @@ export default function AppointmentsPage() {
         }
       }
       
-      // Confirm deletion
       if (confirm('Are you sure you want to delete this appointment?')) {
         await appointmentService.deleteAppointment(id);
         showAlert('success', 'Appointment deleted successfully');

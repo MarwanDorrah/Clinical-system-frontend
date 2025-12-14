@@ -1,4 +1,3 @@
-// Validation utilities for forms
 
 export const validateEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -6,13 +5,8 @@ export const validateEmail = (email: string): boolean => {
 };
 
 export const validatePhone = (phone: string): boolean => {
-  // Support multiple phone formats:
-  // - International: +XX XXX XXX XXXX or +XXXXXXXXXXXX
-  // - National: XXX-XXX-XXXX or (XXX) XXX-XXXX
-  // - Simple: XXXXXXXXXX (10+ digits)
   const cleanedPhone = phone.replace(/[\s\-\(\)]/g, '');
   
-  // Check if it starts with + (international) or is at least 7 digits
   if (cleanedPhone.startsWith('+')) {
     return /^\+\d{7,15}$/.test(cleanedPhone);
   }
@@ -21,7 +15,6 @@ export const validatePhone = (phone: string): boolean => {
 };
 
 export const validatePhoneStrict = (phone: string): boolean => {
-  // Strict US format validation
   const phoneRegex = /^\d{3}-?\d{3}-?\d{4}$/;
   return phoneRegex.test(phone);
 };
@@ -53,12 +46,10 @@ export const validateAppointmentTime = (date: string, time: string): string | nu
   const appointmentDateTime = new Date(`${date}T${time}`);
   const now = new Date();
   
-  // Check if in the past
   if (appointmentDateTime < now) {
     return "Cannot create appointments in the past";
   }
   
-  // Check business hours (8 AM - 6 PM)
   const hour = appointmentDateTime.getHours();
   if (hour < 8 || hour >= 18) {
     return "Appointments must be between 8 AM and 6 PM";

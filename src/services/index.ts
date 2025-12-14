@@ -50,7 +50,7 @@ export const doctorService = {
   createDoctor: (data: Partial<Doctor>): Promise<Doctor> => apiService.post('/Doctor', data),
   updateDoctor: (id: string | number, data: Partial<Doctor>): Promise<{ message: string; doctor: Doctor }> => 
     apiService.put(`/Doctor/${id}`, { ...data, id: Number(id) }),
-  // Note: No DELETE endpoint in backend API for doctors
+
 };
 
 export const nurseService = {
@@ -68,16 +68,13 @@ export const appointmentService = {
   getAppointmentById: (id: string | number): Promise<Appointment> => apiService.get(`/Appointment/${id}`),
   getAppointmentsByPatient: async (patientId: string | number): Promise<Appointment[]> => {
     try {
-      // Try the patient-specific endpoint first
       return await apiService.get(`/Appointment/patient/${patientId}`);
     } catch (error: any) {
-      // If endpoint doesn't exist (404), fallback to filtering all appointments
       if (error?.status === 404 || error?.error?.includes('404') || error?.error?.includes('Not Found')) {
         console.warn('Patient-specific appointment endpoint not available, using fallback');
         const allAppointments = await apiService.get('/Appointment') as Appointment[];
         return allAppointments.filter(apt => apt.patient_ID === Number(patientId));
       }
-      // Re-throw other errors
       throw error;
     }
   },
@@ -91,16 +88,13 @@ export const ehrService = {
   getEHRById: (id: string | number): Promise<EHR> => apiService.get(`/EHR/${id}`),
   getByPatient: async (patientId: number): Promise<EHR[]> => {
     try {
-      // Try the patient-specific endpoint first
       return await apiService.get(`/EHR/patient/${patientId}`);
     } catch (error: any) {
-      // If endpoint doesn't exist (404), fallback to filtering all EHRs
       if (error?.status === 404 || error?.error?.includes('404') || error?.error?.includes('Not Found')) {
         console.warn('Patient-specific EHR endpoint not available, using fallback');
         const allEHRs = await apiService.get('/EHR') as EHR[];
         return allEHRs.filter(ehr => ehr.patient_ID === patientId);
       }
-      // Re-throw other errors
       throw error;
     }
   },
@@ -134,9 +128,7 @@ export const stockTransactionService = {
     apiService.delete(`/StockTransaction/${id}`),
 };
 
-// Export auth utilities and JWT helpers
 export { 
-  // User role checks
   isDoctor, 
   isNurse, 
   getUserRole, 
@@ -144,7 +136,6 @@ export {
   getUserName, 
   getUserEmail, 
   isAuthenticated,
-  // JWT token utilities
   parseJwt,
   getTokenTimeRemaining,
   getTokenTimeRemainingFormatted,
