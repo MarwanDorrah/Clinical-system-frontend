@@ -7,10 +7,10 @@ import Button from '@/components/Button';
 import Badge from '@/components/Badge';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/contexts/AuthContext';
-import { patientService, appointmentService, supplyService } from '@/services';
-import { Appointment, Supply } from '@/types/api.types';
+import { patientService, appointmentService, supplyService, ehrService } from '@/services';
+import { Appointment, Supply, Patient, EHR } from '@/types/api.types';
 import { formatDateForDisplay, formatTimeForDisplay } from '@/utils/date.utils';
-import { Users, Calendar, Clock, Package, AlertTriangle, TrendingUp, ChevronRight, CheckCircle } from 'lucide-react';
+import { Users, Calendar, Clock, Package, AlertTriangle, TrendingUp, ChevronRight, CheckCircle, Bell, User, FileText, Plus, Eye } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -23,8 +23,11 @@ export default function DashboardPage() {
     lowStockItems: 0,
   });
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
+  const [weekAppointments, setWeekAppointments] = useState<Record<string, Appointment[]>>({});
+  const [recentEHRs, setRecentEHRs] = useState<any[]>([]);
   const [lowStockSupplies, setLowStockSupplies] = useState<Supply[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [notifications, setNotifications] = useState(3);
 
   useEffect(() => {
     fetchDashboardData();
@@ -49,6 +52,27 @@ export default function DashboardPage() {
         return timeA - timeB;
       });
 
+      // Get week's appointments (next 7 days)
+      const weekAppts: Record<string, Appointment[]> = {};
+      const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      
+      for (let i = 0; i < 7; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
+        const dayName = daysOfWeek[date.getDay() === 0 ? 6 : date.getDay() - 1];
+        weekAppts[dayName] = appointments.filter(apt => apt.date === dateStr);
+      }
+
+      // Fetch recent EHRs
+      let recentRecords: any[] = [];
+      try {
+        const allEHRs = await ehrService.getAllEHRs();
+        recentRecords = Array.isArray(allEHRs) ? allEHRs.slice(0, 5) : [];
+      } catch (error) {
+        console.error('Error fetching EHRs:', error);
+      }
+
       // Fetch low stock supplies (if doctor)
       let lowStock: Supply[] = [];
       if (isDoctor()) {
@@ -56,6 +80,8 @@ export default function DashboardPage() {
       }
       
       setTodayAppointments(sortedTodayAppts);
+      setWeekAppointments(weekAppts);
+      setRecentEHRs(recentRecords);
       setLowStockSupplies(lowStock.slice(0, 5));
 
       // Calculate completed today (appointments before current time)
@@ -104,274 +130,225 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-          Welcome back, {userName}!
-        </h1>
-        <p className="text-gray-600 mt-2">{getCurrentDate()}</p>
-      </div>
-
-      {/* Low Stock Alert Banner (Doctor only) */}
-      {isDoctor() && stats.lowStockItems > 0 && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-lg">
-          <div className="flex items-start">
-            <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3" />
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold text-yellow-900">
-                Low Stock Alert
-              </h3>
-              <p className="text-sm text-yellow-800 mt-1">
-                {stats.lowStockItems} {stats.lowStockItems === 1 ? 'supply item is' : 'supply items are'} running low on stock.
-              </p>
-              {lowStockSupplies.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {lowStockSupplies.map(supply => (
-                    <p key={supply.supply_ID} className="text-xs text-yellow-700">
-                      • {supply.supply_Name}: {supply.quantity} {supply.unit} remaining
-                    </p>
-                  ))}
-                </div>
-              )}
-              <Button
-                size="sm"
-                variant="secondary"
-                className="mt-3"
-                onClick={() => router.push('/dashboard/supplies')}
-              >
-                View Supplies
-              </Button>
+      {/* Header Section with Profile and Notifications */}
+      <div className="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl p-6 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center font-bold text-blue-600 text-2xl shadow-lg">
+              {userName?.charAt(0).toUpperCase() || 'D'}
             </div>
+            <div className="text-white">
+              <h1 className="text-2xl font-bold">Dr. {userName}</h1>
+              <p className="text-blue-100">{getCurrentDate()}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <button className="relative p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all">
+              <Bell className="w-6 h-6 text-white" />
+              {notifications > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {notifications}
+                </span>
+              )}
+            </button>
           </div>
         </div>
-      )}
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        {/* Today's Appointments */}
-        <Card hoverable>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Today's Appointments</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.todayAppointments}</p>
-              <p className="text-xs text-gray-500 mt-1">
-                {stats.completedToday} completed
-              </p>
-            </div>
-            <div className="bg-primary-100 p-3 rounded-lg">
-              <Calendar className="w-8 h-8 text-primary-600" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Total Patients */}
-        <Card hoverable>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Total Patients</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalPatients}</p>
-              <p className="text-xs text-success-600 mt-1 flex items-center">
-                <TrendingUp className="w-3 h-3 mr-1" />
-                Active records
-              </p>
-            </div>
-            <div className="bg-success-100 p-3 rounded-lg">
-              <Users className="w-8 h-8 text-success-600" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Total Appointments */}
-        <Card hoverable>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Total Appointments</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalAppointments}</p>
-              <p className="text-xs text-gray-500 mt-1">All time</p>
-            </div>
-            <div className="bg-info-100 p-3 rounded-lg">
-              <Clock className="w-8 h-8 text-info-600" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Low Stock Alert (Doctor only) */}
-        {isDoctor() && (
-          <Card hoverable>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Low Stock Items</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.lowStockItems}</p>
-                {stats.lowStockItems > 0 && (
-                  <p className="text-xs text-warning-600 mt-1 flex items-center">
-                    <AlertTriangle className="w-3 h-3 mr-1" />
-                    Needs attention
-                  </p>
-                )}
-              </div>
-              <div className={`${stats.lowStockItems > 0 ? 'bg-warning-100' : 'bg-gray-100'} p-3 rounded-lg`}>
-                <Package className={`w-8 h-8 ${stats.lowStockItems > 0 ? 'text-warning-600' : 'text-gray-600'}`} />
-              </div>
-            </div>
-          </Card>
-        )}
       </div>
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* Today's Schedule - Takes 2 columns */}
-        <div className="lg:col-span-2">
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                <Calendar className="w-5 h-5 mr-2 text-primary-600" />
-                Today's Schedule
-              </h2>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => router.push('/dashboard/appointments')}
-              >
-                View All
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
+      {/* Calendar (Appointments) Section */}
+      <Card>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+            <Calendar className="w-6 h-6 mr-3 text-blue-600" />
+            Today's Appointments
+          </h2>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => router.push('/dashboard/appointments')}
+          >
+            View All
+          </Button>
+        </div>
 
-            {todayAppointments.length === 0 ? (
-              <div className="text-center py-12">
-                <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">No appointments scheduled for today</p>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="mt-4"
+        {todayAppointments.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-xl">
+            <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 text-lg">No appointments scheduled for today</p>
+            <Button
+              variant="primary"
+              size="sm"
+              className="mt-4"
+              onClick={() => router.push('/dashboard/appointments')}
+            >
+              Schedule Appointment
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {todayAppointments.map((appointment) => {
+              const status = getAppointmentStatus(appointment);
+              return (
+                <div
+                  key={appointment.appointment_ID}
+                  className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-xl hover:shadow-md transition-all cursor-pointer border border-gray-200"
                   onClick={() => router.push('/dashboard/appointments')}
                 >
-                  Schedule Appointment
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {todayAppointments.map((appointment) => {
-                  const status = getAppointmentStatus(appointment);
-                  return (
-                    <div
-                      key={appointment.appointment_ID}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                      onClick={() => router.push('/dashboard/appointments')}
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="text-center">
-                          <p className="text-lg font-bold text-gray-900">
-                            {appointment.time.substring(0, 5)}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {status === 'completed' ? 'Done' : status === 'in-progress' ? 'Now' : 'Upcoming'}
-                          </p>
-                        </div>
-                        <div className="h-12 w-px bg-gray-300"></div>
-                        <div>
-                          <p className="font-semibold text-gray-900">{appointment.type}</p>
-                          <p className="text-sm text-gray-600">Ref: {appointment.ref_Num}</p>
-                        </div>
-                      </div>
-                      <div>
-                        {status === 'completed' && (
-                          <Badge variant="success" size="sm">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            Completed
-                          </Badge>
-                        )}
-                        {status === 'in-progress' && (
-                          <Badge variant="warning" size="sm">
-                            <Clock className="w-3 h-3 mr-1" />
-                            In Progress
-                          </Badge>
-                        )}
-                        {status === 'upcoming' && (
-                          <Badge variant="info" size="sm">
-                            Upcoming
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* Sidebar - Takes 1 column */}
-        <div className="space-y-6">
-          {/* Low Stock Alerts (Doctor only) */}
-          {isDoctor() && lowStockSupplies.length > 0 && (
-            <Card>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-                  <AlertTriangle className="w-5 h-5 mr-2 text-warning-600" />
-                  Low Stock Alerts
-                </h2>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => router.push('/dashboard/supplies')}
-                >
-                  View All
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {lowStockSupplies.map((supply) => (
-                  <div
-                    key={supply.supply_ID}
-                    className="flex items-center justify-between p-3 bg-warning-50 rounded-lg border border-warning-200"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">{supply.supply_Name}</p>
-                      <p className="text-xs text-gray-600">{supply.category}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-warning-700">{supply.quantity}</p>
-                      <p className="text-xs text-gray-600">{supply.unit}</p>
-                    </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-2xl font-bold text-blue-600">
+                      {appointment.time.substring(0, 5)}
+                    </span>
+                    {status === 'completed' && (
+                      <Badge variant="success" size="sm">
+                        <CheckCircle className="w-3 h-3" />
+                      </Badge>
+                    )}
+                    {status === 'in-progress' && (
+                      <Badge variant="warning" size="sm">
+                        Now
+                      </Badge>
+                    )}
+                    {status === 'upcoming' && (
+                      <Badge variant="info" size="sm">
+                        Upcoming
+                      </Badge>
+                    )}
                   </div>
-                ))}
-              </div>
-            </Card>
-          )}
+                  <p className="font-semibold text-gray-900">{appointment.type}</p>
+                  <p className="text-sm text-gray-600">Ref: {appointment.ref_Num}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
 
-          {/* Quick Actions */}
-          <Card>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-            <div className="space-y-2">
-              <Button
-                variant="primary"
-                className="w-full justify-start"
-                onClick={() => router.push('/dashboard/appointments')}
-              >
-                <Calendar className="w-4 h-4 mr-2" />
-                New Appointment
-              </Button>
-              <Button
-                variant="secondary"
-                className="w-full justify-start"
-                onClick={() => router.push('/dashboard/patients')}
-              >
-                <Users className="w-4 h-4 mr-2" />
-                Add Patient
-              </Button>
-              <Button
-                variant="secondary"
-                className="w-full justify-start"
-                onClick={() => router.push('/dashboard/ehr')}
-              >
-                <Package className="w-4 h-4 mr-2" />
-                Create EHR
-              </Button>
+      {/* Week's Patients Section */}
+      <Card>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+          <Users className="w-6 h-6 mr-3 text-blue-600" />
+          Week's Patients
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(weekAppointments).map(([day, appointments]) => (
+            <div key={day} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <h3 className="font-bold text-lg text-gray-900 mb-3">{day}</h3>
+              {appointments.length === 0 ? (
+                <p className="text-gray-400 text-sm italic">No appointments</p>
+              ) : (
+                <ul className="space-y-2">
+                  {appointments.slice(0, 5).map((apt) => (
+                    <li
+                      key={apt.appointment_ID}
+                      className="text-sm text-gray-700 flex items-center"
+                    >
+                      <Clock className="w-3 h-3 mr-2 text-gray-400" />
+                      <span className="font-medium">{apt.time.substring(0, 5)}</span>
+                      <span className="mx-1">-</span>
+                      <span className="truncate">{apt.type}</span>
+                    </li>
+                  ))}
+                  {appointments.length > 5 && (
+                    <li className="text-xs text-gray-500 italic">
+                      +{appointments.length - 5} more
+                    </li>
+                  )}
+                </ul>
+              )}
             </div>
-          </Card>
+          ))}
         </div>
-      </div>
+      </Card>
+
+      {/* Recently Viewed EHRs Section */}
+      <Card>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+            <FileText className="w-6 h-6 mr-3 text-blue-600" />
+            Recently Viewed EHRs
+          </h2>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => router.push('/dashboard/ehr')}
+          >
+            View All EHRs
+          </Button>
+        </div>
+
+        {recentEHRs.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-xl">
+            <FileText className="w-16 h-16 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">No recent EHR records</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recentEHRs.map((ehr) => (
+              <div
+                key={ehr.EHR_ID}
+                className="bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl hover:shadow-md transition-all cursor-pointer border border-blue-200"
+                onClick={() => router.push(`/dashboard/ehr/${ehr.EHR_ID}`)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-900 mb-1">
+                      Patient ID: {ehr.patient_ID}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {formatDateForDisplay(ehr.date)}
+                    </p>
+                    {ehr.diagnosis && (
+                      <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                        {ehr.diagnosis}
+                      </p>
+                    )}
+                  </div>
+                  <Eye className="w-5 h-5 text-blue-600" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Quick Actions Section */}
+      <Card>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {isDoctor() && (
+            <>
+              <button
+                onClick={() => router.push('/dashboard/supplies')}
+                className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
+              >
+                <Package className="w-8 h-8" />
+                <span className="font-semibold">New Supply Order</span>
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/supplies')}
+                className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
+              >
+                <Package className="w-8 h-8" />
+                <span className="font-semibold">Check Stock</span>
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => router.push('/dashboard/patients')}
+            className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
+          >
+            <Plus className="w-8 h-8" />
+            <span className="font-semibold">Add Patient Record</span>
+          </button>
+          <button
+            onClick={() => router.push('/dashboard/appointments')}
+            className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
+          >
+            <Calendar className="w-8 h-8" />
+            <span className="font-semibold">Schedule Follow-up</span>
+          </button>
+        </div>
+      </Card>
     </div>
   );
 }
