@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import Table from '@/components/Table';
@@ -20,6 +20,7 @@ import { Package, AlertTriangle, TrendingDown, History, Plus, ChevronRight } fro
 
 export default function SuppliesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isDoctor, userId } = useAuth();
   const [supplies, setSupplies] = useState<Supply[]>([]);
   const [filteredSupplies, setFilteredSupplies] = useState<Supply[]>([]);
@@ -57,6 +58,12 @@ export default function SuppliesPage() {
       return;
     }
     fetchSupplies();
+    
+    // Check if action=add query parameter is present
+    const action = searchParams.get('action');
+    if (action === 'add') {
+      setIsModalOpen(true);
+    }
   }, []);
 
   // Refetch when filters change
@@ -191,21 +198,34 @@ export default function SuppliesPage() {
     e.preventDefault();
 
     try {
-      const submitData = {
-        ...formData,
-        quantity: parseInt(formData.quantity),
-      };
-
       if (editingSupply) {
+        const submitData = {
+          supply_ID: editingSupply.supply_ID,
+          supply_Name: formData.supply_Name,
+          category: formData.category,
+          unit: formData.unit,
+          quantity: parseInt(formData.quantity),
+          description: formData.description,
+        };
+        console.log('Updating supply:', editingSupply.supply_ID, submitData);
         await supplyService.updateSupply(editingSupply.supply_ID, submitData);
         showAlert('success', 'Supply updated successfully');
       } else {
+        const submitData = {
+          supply_Name: formData.supply_Name,
+          category: formData.category,
+          unit: formData.unit,
+          quantity: parseInt(formData.quantity),
+          description: formData.description,
+        };
+        console.log('Creating supply:', submitData);
         await supplyService.createSupply(submitData);
         showAlert('success', 'Supply created successfully');
       }
       handleCloseModal();
       fetchSupplies();
     } catch (error) {
+      console.error('Error submitting supply:', error);
       const apiError = error as ApiError;
       showAlert('error', apiError.error || 'Operation failed');
     }
@@ -258,10 +278,12 @@ export default function SuppliesPage() {
     if (!deleteConfirm.id) return;
     
     try {
+      console.log('Deleting supply:', deleteConfirm.id);
       await supplyService.deleteSupply(deleteConfirm.id);
       showAlert('success', 'Supply deleted successfully');
       fetchSupplies();
     } catch (error) {
+      console.error('Error deleting supply:', error);
       const apiError = error as ApiError;
       showAlert('error', apiError.error || 'Delete failed');
     } finally {

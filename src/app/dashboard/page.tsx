@@ -27,7 +27,7 @@ export default function DashboardPage() {
   const [recentEHRs, setRecentEHRs] = useState<any[]>([]);
   const [lowStockSupplies, setLowStockSupplies] = useState<Supply[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [notifications, setNotifications] = useState(3);
+  const [notifications, setNotifications] = useState<Array<{id: number, type: string, message: string, time: string}>>([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -42,8 +42,30 @@ export default function DashboardPage() {
       
       // Fetch appointments
       const appointments = await appointmentService.getAllAppointments() as Appointment[];
-      const today = new Date().toISOString().split('T')[0];
-      const todayAppts = appointments.filter((apt) => apt.date === today);
+      
+      // For debugging: temporarily show all appointments if none match today
+      const todayDate = new Date();
+      const todayISO = todayDate.toISOString().split('T')[0];
+      
+      let todayAppts = appointments.filter((apt) => {
+        if (!apt.date) return false;
+        let aptDate = typeof apt.date === 'string' ? apt.date.split('T')[0].trim() : apt.date;
+        return aptDate === todayISO;
+      });
+      
+      // If no appointments for today, show next upcoming appointments
+      if (todayAppts.length === 0 && appointments.length > 0) {
+        // Get upcoming appointments (sorted by date and time)
+        const upcoming = appointments
+          .filter(apt => apt.date)
+          .sort((a, b) => {
+            const dateA = new Date(a.date + ' ' + a.time);
+            const dateB = new Date(b.date + ' ' + b.time);
+            return dateA.getTime() - dateB.getTime();
+          })
+          .slice(0, 6); // Show first 6 upcoming appointments
+        todayAppts = upcoming;
+      }
       
       // Sort today's appointments by time
       const sortedTodayAppts = todayAppts.sort((a, b) => {
@@ -61,7 +83,11 @@ export default function DashboardPage() {
         date.setDate(date.getDate() + i);
         const dateStr = date.toISOString().split('T')[0];
         const dayName = daysOfWeek[date.getDay() === 0 ? 6 : date.getDay() - 1];
-        weekAppts[dayName] = appointments.filter(apt => apt.date === dateStr);
+        weekAppts[dayName] = appointments.filter(apt => {
+          if (!apt.date) return false;
+          let aptDate = typeof apt.date === 'string' ? apt.date.split('T')[0].trim() : apt.date;
+          return aptDate === dateStr;
+        });
       }
 
       // Fetch recent EHRs
@@ -73,10 +99,23 @@ export default function DashboardPage() {
         console.error('Error fetching EHRs:', error);
       }
 
-      // Fetch low stock supplies (if doctor)
+      // Fetch low stock and out of stock supplies (if doctor)
       let lowStock: Supply[] = [];
+      let outOfStock: Supply[] = [];
       if (isDoctor()) {
-        lowStock = await supplyService.getLowStock(10) as Supply[];
+        try {
+          // Fetch all supplies to check for out of stock
+          const allSupplies = await supplyService.getAllSupplies() as Supply[];
+          
+          // Filter out of stock items (quantity = 0)
+          outOfStock = allSupplies.filter(supply => supply.quantity <= 0);
+          
+          // Fetch low stock items (exclude out of stock items)
+          const allLowStock = await supplyService.getLowStock(10) as Supply[];
+          lowStock = allLowStock.filter(supply => supply.quantity > 0);
+        } catch (error) {
+          console.error('Error fetching supplies:', error);
+        }
       }
       
       setTodayAppointments(sortedTodayAppts);
@@ -98,6 +137,31 @@ export default function DashboardPage() {
         completedToday,
         lowStockItems: lowStock.length,
       });
+
+      // Generate notifications (only for stock-related items)
+      const notifs: Array<{id: number, type: string, message: string, time: string}> = [];
+
+      // Low stock alerts (only for doctors)
+      if (isDoctor() && lowStock.length > 0) {
+        notifs.push({
+          id: 1,
+          type: 'warning',
+          message: `${lowStock.length} supply item${lowStock.length > 1 ? 's' : ''} running low on stock`,
+          time: 'Now'
+        });
+      }
+
+      // Out of stock alerts (only for doctors)
+      if (isDoctor() && outOfStock.length > 0) {
+        notifs.push({
+          id: 2,
+          type: 'error',
+          message: `${outOfStock.length} supply item${outOfStock.length > 1 ? 's are' : ' is'} out of stock`,
+          time: 'Urgent'
+        });
+      }
+
+      setNotifications(notifs);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -142,25 +206,49 @@ export default function DashboardPage() {
               <p className="text-blue-100">{getCurrentDate()}</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="relative p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all">
-              <Bell className="w-6 h-6 text-white" />
-              {notifications > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {notifications}
-                </span>
-              )}
-            </button>
-          </div>
         </div>
       </div>
+
+      {/* Notifications Section */}
+      {notifications.length > 0 && (
+        <div className="space-y-2">
+          {notifications.map((notif) => (
+            <div
+              key={notif.id}
+              className={`flex items-center justify-between px-4 py-2 rounded-lg border ${
+                notif.type === 'error'
+                  ? 'bg-red-50 border-red-200'
+                  : notif.type === 'warning'
+                  ? 'bg-yellow-50 border-yellow-200'
+                  : 'bg-blue-50 border-blue-200'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                {notif.type === 'error' ? (
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                ) : notif.type === 'warning' ? (
+                  <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                ) : (
+                  <Bell className="w-4 h-4 text-blue-600" />
+                )}
+                <span className="text-sm font-medium text-gray-900">{notif.message}</span>
+              </div>
+              <span className={`text-xs font-medium ${
+                notif.type === 'error' ? 'text-red-600' : 'text-gray-500'
+              }`}>
+                {notif.time}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Calendar (Appointments) Section */}
       <Card>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900 flex items-center">
             <Calendar className="w-6 h-6 mr-3 text-blue-600" />
-            Today's Appointments
+            {stats.todayAppointments > 0 ? "Today's Appointments" : "Upcoming Appointments"}
           </h2>
           <Button
             variant="primary"
@@ -174,7 +262,7 @@ export default function DashboardPage() {
         {todayAppointments.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-xl">
             <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-lg">No appointments scheduled for today</p>
+            <p className="text-gray-500 text-lg">No appointments found</p>
             <Button
               variant="primary"
               size="sm"
@@ -216,48 +304,14 @@ export default function DashboardPage() {
                   </div>
                   <p className="font-semibold text-gray-900">{appointment.type}</p>
                   <p className="text-sm text-gray-600">Ref: {appointment.ref_Num}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formatDateForDisplay(appointment.date)}
+                  </p>
                 </div>
               );
             })}
           </div>
         )}
-      </Card>
-
-      {/* Week's Patients Section */}
-      <Card>
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-          <Users className="w-6 h-6 mr-3 text-blue-600" />
-          Week's Patients
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(weekAppointments).map(([day, appointments]) => (
-            <div key={day} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-              <h3 className="font-bold text-lg text-gray-900 mb-3">{day}</h3>
-              {appointments.length === 0 ? (
-                <p className="text-gray-400 text-sm italic">No appointments</p>
-              ) : (
-                <ul className="space-y-2">
-                  {appointments.slice(0, 5).map((apt) => (
-                    <li
-                      key={apt.appointment_ID}
-                      className="text-sm text-gray-700 flex items-center"
-                    >
-                      <Clock className="w-3 h-3 mr-2 text-gray-400" />
-                      <span className="font-medium">{apt.time.substring(0, 5)}</span>
-                      <span className="mx-1">-</span>
-                      <span className="truncate">{apt.type}</span>
-                    </li>
-                  ))}
-                  {appointments.length > 5 && (
-                    <li className="text-xs text-gray-500 italic">
-                      +{appointments.length - 5} more
-                    </li>
-                  )}
-                </ul>
-              )}
-            </div>
-          ))}
-        </div>
       </Card>
 
       {/* Recently Viewed EHRs Section */}
@@ -318,7 +372,7 @@ export default function DashboardPage() {
           {isDoctor() && (
             <>
               <button
-                onClick={() => router.push('/dashboard/supplies')}
+                onClick={() => router.push('/dashboard/supplies?action=add')}
                 className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
               >
                 <Package className="w-8 h-8" />
@@ -334,14 +388,14 @@ export default function DashboardPage() {
             </>
           )}
           <button
-            onClick={() => router.push('/dashboard/patients')}
+            onClick={() => router.push('/dashboard/ehr/new')}
             className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
           >
             <Plus className="w-8 h-8" />
             <span className="font-semibold">Add Patient Record</span>
           </button>
           <button
-            onClick={() => router.push('/dashboard/appointments')}
+            onClick={() => router.push('/dashboard/appointments?action=add')}
             className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
           >
             <Calendar className="w-8 h-8" />

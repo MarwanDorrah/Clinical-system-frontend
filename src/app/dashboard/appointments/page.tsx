@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import Table from '@/components/Table';
@@ -20,6 +21,7 @@ import { dateAPIToInput, timeAPIToInput, timeInputToAPI, formatDateForDisplay, f
 import { Calendar, User, FileText, Clock, Phone, Mail, List, CalendarDays, AlertCircle, ChevronDown } from 'lucide-react';
 
 export default function AppointmentsPage() {
+  const searchParams = useSearchParams();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -52,6 +54,12 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     fetchData();
+    
+    // Check if action=add query parameter is present
+    const action = searchParams.get('action');
+    if (action === 'add') {
+      setIsModalOpen(true);
+    }
   }, []);
 
   useEffect(() => {
