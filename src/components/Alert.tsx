@@ -13,7 +13,7 @@ export default function Alert({
   message,
   onClose,
   autoClose = true,
-  duration = 5000,
+  duration = 20,
 }: AlertProps) {
   useEffect(() => {
     if (autoClose && onClose) {

@@ -11,13 +11,13 @@ interface EHRTimelineProps {
 }
 
 export default function EHRTimeline({ changeLogs = [], ehrRecords = [] }: EHRTimelineProps) {
-  // Combine change logs and EHR records into a unified timeline
+  
   const timelineEvents = [
     ...changeLogs.map(log => ({
       id: `change-${log.changeLog_ID}`,
       type: 'change' as const,
-      date: log.changedAt,
-      time: new Date(log.changedAt).toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit' }),
+      date: log.changedAt || '',
+      time: log.changedAt ? new Date(log.changedAt).toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit' }) : '',
       title: `${log.changeType}: ${log.fieldName}`,
       description: log.oldValue && log.newValue 
         ? `Changed from "${log.oldValue}" to "${log.newValue}"`
@@ -33,8 +33,8 @@ export default function EHRTimeline({ changeLogs = [], ehrRecords = [] }: EHRTim
     ...ehrRecords.map(ehr => ({
       id: `ehr-${getEhrId(ehr)}`,
       type: 'ehr' as const,
-      date: ehr.updatedAt,
-      time: new Date(ehr.updatedAt).toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit' }),
+      date: ehr.updatedAt || '',
+      time: ehr.updatedAt ? new Date(ehr.updatedAt).toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit' }) : '',
       title: 'Health Record Updated',
       description: ehr.diagnosis || ehr.clinicalNotes || 'EHR record modified',
       user: ehr.updatedBy,
@@ -58,7 +58,7 @@ export default function EHRTimeline({ changeLogs = [], ehrRecords = [] }: EHRTim
 
   return (
     <div className="space-y-4">
-      {/* Timeline Header */}
+      {}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <Activity className="w-6 h-6 text-primary-600" />
@@ -67,12 +67,12 @@ export default function EHRTimeline({ changeLogs = [], ehrRecords = [] }: EHRTim
         </div>
       </div>
 
-      {/* Timeline */}
+      {}
       <div className="relative">
-        {/* Vertical Line */}
+        {}
         <div className="absolute left-[23px] top-0 bottom-0 w-0.5 bg-gray-200"></div>
 
-        {/* Timeline Events */}
+        {}
         <div className="space-y-6">
           {timelineEvents.map((event, index) => {
             const Icon = event.icon;
@@ -80,14 +80,14 @@ export default function EHRTimeline({ changeLogs = [], ehrRecords = [] }: EHRTim
             
             return (
               <div key={event.id} className="relative flex gap-4">
-                {/* Icon Circle */}
+                {}
                 <div className={`relative z-10 flex items-center justify-center w-12 h-12 rounded-full border-4 border-white ${event.bgColor}`}>
                   <Icon className={`w-5 h-5 ${event.color}`} />
                 </div>
 
-                {/* Content Card */}
+                {}
                 <div className={`flex-1 rounded-lg border-2 ${event.borderColor} ${event.bgColor} p-4 shadow-sm hover:shadow-md transition-shadow`}>
-                  {/* Header */}
+                  {}
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <h4 className={`font-semibold ${event.color} text-base`}>
@@ -106,7 +106,7 @@ export default function EHRTimeline({ changeLogs = [], ehrRecords = [] }: EHRTim
                     )}
                   </div>
 
-                  {/* EHR Summary */}
+                  {}
                   {event.type === 'ehr' && event.ehrData && (
                     <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-2 gap-2 text-xs">
                       {event.ehrData.medications && event.ehrData.medications.length > 0 && (
@@ -136,7 +136,7 @@ export default function EHRTimeline({ changeLogs = [], ehrRecords = [] }: EHRTim
                     </div>
                   )}
 
-                  {/* Footer */}
+                  {}
                   <div className="flex items-center space-x-4 mt-3 text-xs text-gray-600">
                     <div className="flex items-center space-x-1">
                       <User className="w-3.5 h-3.5" />

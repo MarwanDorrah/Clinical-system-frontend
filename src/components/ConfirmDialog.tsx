@@ -45,20 +45,15 @@ export default function ConfirmDialog({
   const config = variantConfig[variant];
 
   return (
-    <Modal isOpen={isOpen} onClose={onCancel} title={title}>
-      <div className="space-y-4">
-        {/* Icon */}
-        <div className="flex justify-center">
-          <div className={`${config.icon} rounded-full p-3`}>
-            <AlertTriangle className="w-8 h-8" />
-          </div>
-        </div>
-
-        {/* Message */}
-        <p className="text-center text-gray-600">{message}</p>
-
-        {/* Actions */}
-        <div className="flex space-x-3 justify-center pt-4">
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onCancel} 
+      title={title} 
+      size="sm"
+      disableBackdropClose={true}
+      disableEscapeClose={isLoading}
+      footer={(
+        <div className="flex gap-3 justify-end w-full">
           <Button
             type="button"
             variant="secondary"
@@ -76,6 +71,16 @@ export default function ConfirmDialog({
             {confirmLabel}
           </Button>
         </div>
+      )}
+    >
+      <div className="flex flex-col items-center gap-4 py-2">
+        {}
+        <div className={`${config.icon} rounded-full p-3`}>
+          <AlertTriangle className="w-8 h-8" />
+        </div>
+
+        {}
+        <p className="text-center text-gray-700 text-sm leading-relaxed">{message}</p>
       </div>
     </Modal>
   );

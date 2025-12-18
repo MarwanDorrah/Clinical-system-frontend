@@ -20,7 +20,6 @@ export default function CalendarView({
 }: CalendarViewProps) {
   const [viewDate, setViewDate] = useState(currentDate);
 
-  // Debug logging - log appointments when they change
   console.log('CalendarView received appointments:', appointments.length);
   if (appointments.length > 0) {
     console.log('Sample appointment:', appointments[0]);
@@ -42,12 +41,11 @@ export default function CalendarView({
   const getAppointmentsForDate = (day: number) => {
     const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const dayAppointments = appointments.filter((apt) => {
-      // Handle both "2025-12-15" and "2025-12-15T00:00:00" formats
+      
       const aptDate = apt.date.split('T')[0];
       return aptDate === dateStr;
     });
-    
-    // Debug logging (remove after testing)
+
     if (dayAppointments.length > 0) {
       console.log(`Found ${dayAppointments.length} appointments for ${dateStr}:`, dayAppointments.map(a => ({ type: a.type, time: a.time })));
     }
@@ -67,7 +65,7 @@ export default function CalendarView({
       'Whitening': 'bg-pink-500',
       'Treatment': 'bg-teal-500',
     };
-    return colors[type] || 'bg-gray-600';
+    return colors[type] || 'bg-teal-500';
   };
 
   const previousMonth = () => {
@@ -95,15 +93,12 @@ export default function CalendarView({
   const firstDayOfMonth = getFirstDayOfMonth(viewDate);
   const monthName = viewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-  // Generate calendar days
   const calendarDays: (number | null)[] = [];
-  
-  // Add empty cells for days before the first day of the month
+
   for (let i = 0; i < firstDayOfMonth; i++) {
     calendarDays.push(null);
   }
-  
-  // Add actual days
+
   for (let day = 1; day <= daysInMonth; day++) {
     calendarDays.push(day);
   }
@@ -111,22 +106,22 @@ export default function CalendarView({
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
-      {/* Calendar Header */}
-      <div className="flex items-center justify-between p-4 md:p-5 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-blue-50">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+      {}
+      <div className="flex items-center justify-between p-4 md:p-6 border-b-2 border-gray-100 bg-gradient-to-r from-primary-50 via-blue-50 to-purple-50">
         <button
           onClick={previousMonth}
-          className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+          className="p-2.5 hover:bg-white/80 rounded-xl transition-all hover:scale-105 shadow-sm"
           aria-label="Previous month"
         >
           <ChevronLeft className="w-5 h-5 text-gray-700" />
         </button>
         
         <div className="flex items-center gap-3">
-          <h2 className="text-lg md:text-xl font-bold text-gray-900">{monthName}</h2>
+          <h2 className="text-lg md:text-2xl font-bold text-gray-900 tracking-tight">{monthName}</h2>
           <button
             onClick={goToToday}
-            className="px-3 py-1.5 text-xs md:text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+            className="px-4 py-2 text-xs md:text-sm bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-lg hover:from-primary-700 hover:to-primary-800 transition-all font-semibold shadow-md hover:shadow-lg transform hover:scale-105"
           >
             Today
           </button>
@@ -134,16 +129,16 @@ export default function CalendarView({
         
         <button
           onClick={nextMonth}
-          className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+          className="p-2.5 hover:bg-white/80 rounded-xl transition-all hover:scale-105 shadow-sm"
           aria-label="Next month"
         >
           <ChevronRight className="w-5 h-5 text-gray-700" />
         </button>
       </div>
 
-      {/* Calendar Grid */}
+      {}
       <div className="p-3 md:p-4">
-        {/* Week day headers */}
+        {}
         <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2">
           {weekDays.map((day) => (
             <div key={day} className="text-center text-xs md:text-sm font-semibold text-gray-600 py-2">
@@ -153,7 +148,7 @@ export default function CalendarView({
           ))}
         </div>
 
-        {/* Calendar days */}
+        {}
         <div className="grid grid-cols-7 gap-1 md:gap-2">
           {calendarDays.map((day, index) => {
             if (day === null) {
@@ -171,30 +166,50 @@ export default function CalendarView({
                   onDateClick(date);
                 }}
                 className={`
-                  aspect-square p-1 md:p-2 rounded-lg border-2 transition-all hover:border-primary-500 hover:shadow-md
-                  ${today ? 'border-primary-500 bg-primary-50' : 'border-gray-200 bg-white hover:bg-gray-50'}
-                  ${dayAppointments.length > 0 ? 'font-semibold' : ''}
+                  aspect-square p-1.5 md:p-3 rounded-xl border-2 transition-all duration-200
+                  ${today 
+                    ? 'border-primary-500 bg-gradient-to-br from-primary-50 to-blue-50 shadow-md' 
+                    : 'border-gray-200 bg-white hover:border-primary-400'}
+                  ${dayAppointments.length > 0 
+                    ? 'hover:shadow-lg hover:scale-105 ring-2 ring-transparent hover:ring-primary-200' 
+                    : 'hover:shadow-md hover:scale-102'}
+                  hover:-translate-y-0.5 transform
                 `}
               >
                 <div className="flex flex-col h-full justify-between">
-                  <span className={`text-xs md:text-sm ${today ? 'text-primary-700' : 'text-gray-700'}`}>
-                    {day}
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs md:text-base font-semibold ${
+                      today ? 'text-primary-700' : dayAppointments.length > 0 ? 'text-gray-900' : 'text-gray-600'
+                    }`}>
+                      {day}
+                    </span>
+                    {dayAppointments.length > 0 && (
+                      <span className="text-[9px] md:text-xs px-1.5 py-0.5 bg-primary-600 text-white rounded-full font-bold">
+                        {dayAppointments.length}
+                      </span>
+                    )}
+                  </div>
                   
-                  {/* Appointment indicators */}
+                  {}
                   {dayAppointments.length > 0 && (
-                    <div className="flex flex-col items-center gap-0.5 mt-1">
-                      {dayAppointments.slice(0, 3).map((apt, idx) => (
+                    <div className="flex flex-col items-center gap-1 mt-1">
+                      {dayAppointments.slice(0, 2).map((apt, idx) => (
                         <div
                           key={apt.appointment_ID}
-                          className={`w-full h-0.5 md:h-1 rounded-full ${getAppointmentColor(apt.type)}`}
+                          className={`w-full h-1 md:h-1.5 rounded-full ${getAppointmentColor(apt.type)} shadow-sm`}
                           title={`${apt.time} - ${apt.type}`}
                         ></div>
                       ))}
-                      {dayAppointments.length > 3 && (
-                        <span className="text-[9px] md:text-[10px] text-gray-500 font-normal mt-0.5">
-                          +{dayAppointments.length - 3}
-                        </span>
+                      {dayAppointments.length > 2 && (
+                        <div className="flex gap-0.5 mt-0.5">
+                          {dayAppointments.slice(2, 5).map((apt, idx) => (
+                            <div
+                              key={apt.appointment_ID}
+                              className={`w-1 h-1 md:w-1.5 md:h-1.5 rounded-full ${getAppointmentColor(apt.type)}`}
+                              title={`${apt.time} - ${apt.type}`}
+                            ></div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   )}
@@ -205,44 +220,47 @@ export default function CalendarView({
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="px-3 md:px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">
-        <div className="flex flex-wrap gap-2 md:gap-3 justify-center">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-            <span className="text-xs text-gray-600">Checkup</span>
+      {}
+      <div className="px-4 md:px-6 py-4 border-t-2 border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100 rounded-b-xl">
+        <div className="mb-2">
+          <p className="text-xs font-semibold text-gray-700 text-center">Appointment Types</p>
+        </div>
+        <div className="flex flex-wrap gap-2 md:gap-4 justify-center">
+          <div className="flex items-center gap-2 px-2 py-1 bg-white rounded-lg shadow-sm">
+            <div className="w-3 h-3 rounded-full bg-blue-500 shadow-sm"></div>
+            <span className="text-xs font-medium text-gray-700">Checkup</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span className="text-xs text-gray-600">Cleaning</span>
+          <div className="flex items-center gap-2 px-2 py-1 bg-white rounded-lg shadow-sm">
+            <div className="w-3 h-3 rounded-full bg-green-500 shadow-sm"></div>
+            <span className="text-xs font-medium text-gray-700">Cleaning</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-            <span className="text-xs text-gray-600">Root Canal</span>
+          <div className="flex items-center gap-2 px-2 py-1 bg-white rounded-lg shadow-sm">
+            <div className="w-3 h-3 rounded-full bg-purple-500 shadow-sm"></div>
+            <span className="text-xs font-medium text-gray-700">Root Canal</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-            <span className="text-xs text-gray-600">Filling</span>
+          <div className="flex items-center gap-2 px-2 py-1 bg-white rounded-lg shadow-sm">
+            <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-sm"></div>
+            <span className="text-xs font-medium text-gray-700">Filling</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-            <span className="text-xs text-gray-600">Extraction</span>
+          <div className="flex items-center gap-2 px-2 py-1 bg-white rounded-lg shadow-sm">
+            <div className="w-3 h-3 rounded-full bg-orange-500 shadow-sm"></div>
+            <span className="text-xs font-medium text-gray-700">Extraction</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
-            <span className="text-xs text-gray-600">Crown</span>
+          <div className="flex items-center gap-2 px-2 py-1 bg-white rounded-lg shadow-sm">
+            <div className="w-3 h-3 rounded-full bg-indigo-500 shadow-sm"></div>
+            <span className="text-xs font-medium text-gray-700">Crown</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-pink-500"></div>
-            <span className="text-xs text-gray-600">Whitening</span>
+          <div className="flex items-center gap-2 px-2 py-1 bg-white rounded-lg shadow-sm">
+            <div className="w-3 h-3 rounded-full bg-pink-500 shadow-sm"></div>
+            <span className="text-xs font-medium text-gray-700">Whitening</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-500"></div>
-            <span className="text-xs text-gray-600">Emergency</span>
+          <div className="flex items-center gap-2 px-2 py-1 bg-white rounded-lg shadow-sm">
+            <div className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></div>
+            <span className="text-xs font-medium text-gray-700">Emergency</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-gray-600"></div>
-            <span className="text-xs text-gray-600">Other</span>
+          <div className="flex items-center gap-2 px-2 py-1 bg-white rounded-lg shadow-sm">
+            <div className="w-3 h-3 rounded-full bg-teal-500 shadow-sm"></div>
+            <span className="text-xs font-medium text-gray-700">Other/Custom</span>
           </div>
         </div>
       </div>

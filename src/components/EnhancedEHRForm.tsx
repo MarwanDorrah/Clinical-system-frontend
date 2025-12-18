@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { EHR, Medication, Procedure, ToothRecord, XRay } from '@/types/api.types';
+import { ehrService } from '@/services';
 import Button from './Button';
 import Input from './Input';
-import ToothChart from './ToothChart';
+import ToothChart, { TOOTH_NAMES, TOOTH_CONDITIONS } from './ToothChart';
 import ImageUpload from './ImageUpload';
-import { ChevronDown, ChevronRight, Plus, Trash2, Save, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Save, Image as ImageIcon, AlertCircle, Microscope, FileText } from 'lucide-react';
 
 interface EnhancedEHRFormProps {
   initialData?: Partial<EHR>;
@@ -68,6 +69,8 @@ export default function EnhancedEHRForm({
     xRays: initialData?.xRays || [],
   });
 
+  const [pendingXRayFiles, setPendingXRayFiles] = useState<{ id: string; file: File }[]>([]);
+
   const toggleSection = (sectionId: string) => {
     setSections(sections.map(s => 
       s.id === sectionId ? { ...s, isOpen: !s.isOpen } : s
@@ -76,13 +79,11 @@ export default function EnhancedEHRForm({
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
-    
-    // Validate diagnosis (required, minimum length)
+
     if (!formData.diagnosis || formData.diagnosis.trim().length < 10) {
       newErrors.diagnosis = 'Diagnosis is required (minimum 10 characters)';
     }
-    
-    // Validate medications
+
     formData.medications?.forEach((med, index) => {
       if (!med.name?.trim()) {
         if (!newErrors.medications) newErrors.medications = {};
@@ -90,8 +91,7 @@ export default function EnhancedEHRForm({
         newErrors.medications[index].name = 'Medication name is required';
       }
     });
-    
-    // Validate procedures
+
     formData.procedures?.forEach((proc, index) => {
       if (!proc.code?.trim()) {
         if (!newErrors.procedures) newErrors.procedures = {};
@@ -103,6 +103,17 @@ export default function EnhancedEHRForm({
         if (!newErrors.procedures[index]) newErrors.procedures[index] = {};
         newErrors.procedures[index].description = 'Description is required';
       }
+
+      const toothNum = proc.toothNumber || proc.ToothNumber;
+      if (toothNum) {
+        const tooth = formData.teeth?.find(t => (t.toothNumber || t.ToothNumber) === toothNum);
+        const condition = tooth?.condition || tooth?.Condition || '';
+        if (condition === TOOTH_CONDITIONS.MISSING || condition === TOOTH_CONDITIONS.EXTRACTION) {
+          if (!newErrors.procedures) newErrors.procedures = {};
+          if (!newErrors.procedures[index]) newErrors.procedures[index] = {};
+          newErrors.procedures[index].toothNumber = `Cannot perform procedures on ${condition.toLowerCase()} teeth (Tooth #${toothNum})`;
+        }
+      }
     });
     
     setErrors(newErrors);
@@ -112,11 +123,47 @@ export default function EnhancedEHRForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      await onSubmit(formData);
+      
+      let finalFormData: Partial<EHR> = { ...formData };
+
+      if (pendingXRayFiles.length > 0) {
+        const updatedXRays = [...(formData.xRays || [])];
+
+        for (const pending of pendingXRayFiles) {
+          try {
+            
+            const idx = (updatedXRays as any[]).findIndex(x => x.clientId === pending.id);
+            if (idx === -1) continue;
+            const entry = updatedXRays[idx] as any;
+
+            const uploadData = {
+              type: entry.type || '',
+              findings: entry.findings || '',
+              takenAt: entry.takenAt || new Date().toISOString().split('T')[0],
+              takenBy: entry.takenBy || '',
+              notes: entry.notes || '',
+            };
+
+            const uploaded = await ehrService.uploadXRay(pending.file, uploadData);
+
+            updatedXRays[idx] = {
+              ...uploaded,
+              imagePath: uploaded.imagePath || uploaded.ImagePath || '',
+            } as any;
+          } catch (err) {
+            console.error('Failed to upload X-Ray file', err);
+          }
+        }
+
+        setPendingXRayFiles([]);
+        finalFormData = { ...finalFormData, xRays: updatedXRays };
+        setFormData(finalFormData);
+      }
+
+      await onSubmit(finalFormData);
     }
   };
 
-  // Medication handlers
   const addMedication = () => {
     setFormData({
       ...formData,
@@ -146,7 +193,6 @@ export default function EnhancedEHRForm({
     setFormData({ ...formData, medications: updated });
   };
 
-  // Procedure handlers
   const addProcedure = () => {
     setFormData({
       ...formData,
@@ -156,7 +202,7 @@ export default function EnhancedEHRForm({
           code: '',
           description: '',
           performedAt: new Date().toISOString().split('T')[0],
-          toothNumber: '',
+          toothNumber: undefined,
           status: 'Planned',
           notes: '',
         },
@@ -164,9 +210,15 @@ export default function EnhancedEHRForm({
     });
   };
 
-  const updateProcedure = (index: number, field: keyof Procedure, value: string) => {
+  const updateProcedure = (index: number, field: keyof Procedure, value: string | number | undefined) => {
     const updated = [...(formData.procedures || [])];
-    updated[index] = { ...updated[index], [field]: value };
+    
+    if (field === 'toothNumber' || field === 'ToothNumber') {
+      const num = value === '' || value === undefined ? undefined : Number(value);
+      updated[index] = { ...updated[index], [field]: num };
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+    }
     setFormData({ ...formData, procedures: updated });
   };
 
@@ -175,23 +227,29 @@ export default function EnhancedEHRForm({
     setFormData({ ...formData, procedures: updated });
   };
 
-  // Tooth Chart handlers
   const handleToothClick = (toothNumber: number) => {
     const existingTeeth = formData.teeth || [];
     const existingIndex = existingTeeth.findIndex(t => t.toothNumber === toothNumber);
 
     if (existingIndex >= 0) {
-      // Remove tooth if already selected
+      
+      const toothName = TOOTH_NAMES[toothNumber] || `#${toothNumber}`;
+      const confirmed = window.confirm(
+        `Remove Tooth ${toothName} from this record?\n\nThis will delete all data for this tooth including condition, treatments, and notes.`
+      );
+      if (!confirmed) return;
+
       const updated = existingTeeth.filter((_, i) => i !== existingIndex);
       setFormData({ ...formData, teeth: updated });
     } else {
-      // Add new tooth
+      
       setFormData({
         ...formData,
         teeth: [
           ...existingTeeth,
           {
             toothNumber,
+            toothName: TOOTH_NAMES[toothNumber] || '',
             condition: 'Healthy',
             treatmentPlanned: '',
             treatmentCompleted: '',
@@ -214,7 +272,6 @@ export default function EnhancedEHRForm({
     setFormData({ ...formData, teeth: updated });
   };
 
-  // X-Ray handlers
   const addXRay = () => {
     setFormData({
       ...formData,
@@ -238,13 +295,17 @@ export default function EnhancedEHRForm({
   };
 
   const removeXRay = (index: number) => {
+    const xr = (formData.xRays || [])[index];
+    if (xr && (xr as any).clientId) {
+      setPendingXRayFiles(prev => prev.filter(p => p.id !== (xr as any).clientId));
+    }
     const updated = (formData.xRays || []).filter((_, i) => i !== index);
     setFormData({ ...formData, xRays: updated });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Display validation errors */}
+      {}
       {Object.keys(errors).length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
@@ -283,12 +344,12 @@ export default function EnhancedEHRForm({
 
           {section.isOpen && (
             <div className="p-4 border-t border-gray-200">
-              {/* Section 1: General Medical Information */}
+              {}
               {section.id === 'general' && (
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      🩹 Allergies
+                      Allergies
                     </label>
                     <p className="text-xs text-gray-500 mb-2">
                       List all known drug, food, or material allergies (e.g., Penicillin, Latex, Aspirin)
@@ -302,8 +363,9 @@ export default function EnhancedEHRForm({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      ⚠️ Medical Alerts
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                      <AlertCircle className="w-4 h-4 text-yellow-500" />
+                      <span>Medical Alerts</span>
                     </label>
                     <p className="text-xs text-gray-500 mb-2">
                       Critical conditions that require special attention during treatment
@@ -317,8 +379,9 @@ export default function EnhancedEHRForm({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      📋 Medical History
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                      <FileText className="w-4 h-4 text-gray-500" />
+                      <span>Medical History</span>
                     </label>
                     <p className="text-xs text-gray-500 mb-2">
                       Comprehensive medical background including past conditions, surgeries, and chronic diseases
@@ -334,12 +397,13 @@ export default function EnhancedEHRForm({
                 </div>
               )}
 
-              {/* Section 2: Diagnosis & Findings */}
+              {}
               {section.id === 'diagnosis' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      🔬 Diagnosis <span className="text-red-500">*</span>
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                      <Microscope className="w-4 h-4 text-gray-500" />
+                      <span>Diagnosis <span className="text-red-500">*</span></span>
                     </label>
                     <p className="text-xs text-gray-500 mb-2">
                       Primary diagnosis or chief complaint (Required, minimum 10 characters)
@@ -389,7 +453,7 @@ export default function EnhancedEHRForm({
                 </div>
               )}
 
-              {/* Section 3: Medications */}
+              {}
               {section.id === 'medications' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -467,7 +531,7 @@ export default function EnhancedEHRForm({
                 </div>
               )}
 
-              {/* Section 4: Procedures */}
+              {}
               {section.id === 'procedures' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -511,10 +575,16 @@ export default function EnhancedEHRForm({
                         />
                         <Input
                           label="Tooth Number"
-                          value={proc.toothNumber}
+                          value={proc.toothNumber ?? ''}
                           onChange={(e) => updateProcedure(index, 'toothNumber', e.target.value)}
                           placeholder="e.g., 14"
                         />
+                        {errors.procedures?.[index]?.toothNumber && (
+                          <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {errors.procedures[index].toothNumber}
+                          </p>
+                        )}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Status
@@ -548,7 +618,7 @@ export default function EnhancedEHRForm({
                 </div>
               )}
 
-              {/* Section 5: Tooth Chart */}
+              {}
               {section.id === 'teeth' && (
                 <div className="space-y-4">
                   <p className="text-sm text-gray-600 mb-4">
@@ -560,7 +630,7 @@ export default function EnhancedEHRForm({
                     notation="universal"
                   />
                   
-                  {/* Tooth Records List */}
+                  {}
                   {(formData.teeth || []).length > 0 && (
                     <div className="mt-6 space-y-3">
                       <h4 className="font-semibold text-gray-900">
@@ -590,12 +660,16 @@ export default function EnhancedEHRForm({
                                 onChange={(e) => updateTooth(index, 'condition', e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                               >
-                                <option value="Healthy">Healthy</option>
-                                <option value="Cavity">Cavity</option>
-                                <option value="Filled">Filled</option>
-                                <option value="Crown">Crown</option>
-                                <option value="Missing">Missing</option>
-                                <option value="Decay">Decay</option>
+                                <option value="">(Select condition)</option>
+                                <option value={TOOTH_CONDITIONS.HEALTHY}>{TOOTH_CONDITIONS.HEALTHY}</option>
+                                <option value={TOOTH_CONDITIONS.CARIES}>{TOOTH_CONDITIONS.CARIES}</option>
+                                <option value={TOOTH_CONDITIONS.FILLING}>{TOOTH_CONDITIONS.FILLING}</option>
+                                <option value={TOOTH_CONDITIONS.ROOT_CANAL}>{TOOTH_CONDITIONS.ROOT_CANAL}</option>
+                                <option value={TOOTH_CONDITIONS.CROWN}>{TOOTH_CONDITIONS.CROWN}</option>
+                                <option value={TOOTH_CONDITIONS.EXTRACTION}>{TOOTH_CONDITIONS.EXTRACTION}</option>
+                                <option value={TOOTH_CONDITIONS.MISSING}>{TOOTH_CONDITIONS.MISSING}</option>
+                                <option value={TOOTH_CONDITIONS.DECAY}>{TOOTH_CONDITIONS.DECAY}</option>
+                                <option value={TOOTH_CONDITIONS.OTHERS}>(Custom - enter below)</option>
                               </select>
                             </div>
                             <Input
@@ -630,7 +704,7 @@ export default function EnhancedEHRForm({
                 </div>
               )}
 
-              {/* Section 6: X-Rays */}
+              {}
               {section.id === 'xrays' && (
                 <div className="space-y-4">
                   <div className="mb-6">
@@ -644,15 +718,25 @@ export default function EnhancedEHRForm({
                         setFormData({ ...formData, xRays: updated });
                       }}
                       onChange={(files) => {
-                        // Just store files locally for preview, no backend upload
-                        const newXRays = files.map(file => ({
+                        
+                        const now = Date.now();
+                        const added = files.map((file, idx) => {
+                          const id = `client-${now}-${idx}`;
+                          return { id, file };
+                        });
+                        setPendingXRayFiles(prev => [...prev, ...added]);
+
+                        const newXRays = files.map((file, idx) => ({
+                          
+                          clientId: added[idx].id,
                           type: 'Local Image',
                           findings: '',
                           takenAt: new Date().toISOString().split('T')[0],
                           takenBy: '',
                           imagePath: URL.createObjectURL(file),
                           notes: '',
-                        }));
+                        } as any));
+
                         setFormData({
                           ...formData,
                           xRays: [...(formData.xRays || []), ...newXRays],
@@ -707,7 +791,7 @@ export default function EnhancedEHRForm({
                           label="Taken By"
                           value={xray.takenBy}
                           onChange={(e) => updateXRay(index, 'takenBy', e.target.value)}
-                          placeholder="Technician/Doctor name"
+                          placeholder="Dr. Ahmed Hassan"
                         />
                         <Input
                           label="Image Path (Optional)"
@@ -739,7 +823,7 @@ export default function EnhancedEHRForm({
                 </div>
               )}
 
-              {/* Section 7: Clinical Notes */}
+              {}
               {section.id === 'clinical' && (
                 <div className="space-y-4">
                   <div>
@@ -785,7 +869,7 @@ export default function EnhancedEHRForm({
         </div>
       ))}
 
-      {/* Form Actions */}
+      {}
       <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
         <Button
           type="button"
