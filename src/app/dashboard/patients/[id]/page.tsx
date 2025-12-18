@@ -24,7 +24,6 @@ export default function PatientProfilePage() {
   const [ehrRecords, setEhrRecords] = useState<EHR[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Redirect if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/auth/login');
@@ -44,15 +43,13 @@ export default function PatientProfilePage() {
   const fetchPatientData = async () => {
     try {
       setIsLoading(true);
-      
-      // Fetch patient data first (required)
+
       const patientData = await patientService.getPatientById(patientId) as Patient;
       setPatient(patientData);
-      
-      // Fetch related data (optional - don't fail if these error)
+
       try {
         const appointmentData = await appointmentService.getAppointmentsByPatient(patientId) as Appointment[];
-        // Sort by date descending (most recent first)
+        
         const sortedAppointments = appointmentData.sort((a, b) => 
           new Date(b.date).getTime() - new Date(a.date).getTime()
         );
@@ -87,7 +84,6 @@ export default function PatientProfilePage() {
     return age;
   };
 
-  // Get the most recent EHR record
   const getLatestEHR = () => {
     if (ehrRecords.length === 0) return null;
     return ehrRecords.reduce((latest, current) => {
@@ -97,7 +93,6 @@ export default function PatientProfilePage() {
     });
   };
 
-  // Get the last visit date (most recent appointment)
   const getLastVisit = () => {
     if (appointments.length === 0) return 'N/A';
     const sortedAppointments = [...appointments].sort((a, b) => 
@@ -126,7 +121,6 @@ export default function PatientProfilePage() {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb Navigation */}
       <Breadcrumb
         items={[
           { label: 'Dashboard', href: '/dashboard' },
@@ -135,7 +129,6 @@ export default function PatientProfilePage() {
         ]}
       />
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <User className="w-8 h-8 text-primary-600" />
@@ -167,7 +160,6 @@ export default function PatientProfilePage() {
         </div>
       </div>
 
-      {/* Patient Information Card */}
       <Card className="border-2 border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900">Patient Information</h2>
@@ -205,7 +197,6 @@ export default function PatientProfilePage() {
         </div>
       </Card>
 
-      {/* EHR Summary Card */}
       <Card className="border-2 border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900">EHR Summary</h2>
@@ -246,10 +237,9 @@ export default function PatientProfilePage() {
 
         {latestEHR ? (
           <div className="space-y-6">
-            {/* Dental Chart Overview */}
             <div>
               <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-3">
-                🦷 Dental Chart Overview:
+                Dental Chart Overview:
               </h3>
               {(latestEHR.teeth || latestEHR.Teeth || latestEHR.toothRecords) && ((latestEHR.teeth || latestEHR.Teeth || latestEHR.toothRecords) || []).length > 0 ? (
                 <ul className="space-y-2 text-sm text-gray-700 ml-4">
@@ -270,10 +260,9 @@ export default function PatientProfilePage() {
               )}
             </div>
 
-            {/* Medications Overview */}
             <div>
               <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-3">
-                💊 Medications Overview:
+                Medications Overview:
               </h3>
               {latestEHR.medications && latestEHR.medications.length > 0 ? (
                 <ul className="space-y-2 text-sm text-gray-700 ml-4">
@@ -292,10 +281,9 @@ export default function PatientProfilePage() {
               )}
             </div>
 
-            {/* Treatments & Procedures Overview */}
             <div>
               <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-3">
-                📝 Treatments & Procedures Overview:
+                Treatments & Procedures Overview:
               </h3>
               {latestEHR.procedures && latestEHR.procedures.length > 0 ? (
                 <ul className="space-y-2 text-sm text-gray-700 ml-4">
@@ -329,7 +317,6 @@ export default function PatientProfilePage() {
         )}
       </Card>
 
-      {/* Appointment-linked Changes Card */}
       <Card className="border-2 border-gray-200">
         <h2 className="text-lg font-bold text-gray-900 mb-4">Appointment-linked Changes</h2>
         

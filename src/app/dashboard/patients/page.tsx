@@ -16,7 +16,7 @@ import Tabs from '@/components/Tabs';
 import { patientService, appointmentService, ehrService, isDoctor } from '@/services';
 import { Patient, Appointment, EHR, ApiError } from '@/types/api.types';
 import { dateAPIToInput, dateInputToAPI, formatDateForDisplay, formatTimeForDisplay } from '@/utils/date.utils';
-import { User, Calendar, FileText, Phone, Eye, Edit, Search, Plus, ChevronRight, ChevronLeft, ChevronDown, MapPin } from 'lucide-react';
+import { User, Calendar, FileText, Phone, Eye, Edit, Search, Plus, ChevronRight, ChevronLeft, ChevronDown, MapPin, Activity, Pill } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function PatientsPage() {
@@ -47,7 +47,6 @@ export default function PatientsPage() {
     phone: '',
   });
 
-  // Redirect if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/auth/login');
@@ -112,22 +111,21 @@ export default function PatientsPage() {
     setDetailsLoading(true);
     
     try {
-      // Fetch appointments for this patient
+      
       try {
         const patientAppts = await appointmentService.getAppointmentsByPatient(patient.patient_ID) as Appointment[];
         setPatientAppointments(patientAppts);
       } catch (aptError) {
         console.error('Error fetching appointments:', aptError);
-        setPatientAppointments([]); // Set empty array on error
+        setPatientAppointments([]); 
       }
 
-      // Fetch EHR for this patient
       try {
         const ehrData = await ehrService.getByPatient(patient.patient_ID) as EHR[];
         setPatientEHR(ehrData);
       } catch (ehrError) {
         console.error('Error fetching EHR:', ehrError);
-        setPatientEHR([]); // Set empty array on error
+        setPatientEHR([]); 
       }
     } catch (error) {
       console.error('Error fetching patient details:', error);
@@ -150,7 +148,6 @@ export default function PatientsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation matching backend rules
     if (!formData.first || formData.first.trim().length === 0) {
       showAlert('error', 'First name is required');
       return;
@@ -187,15 +184,13 @@ export default function PatientsPage() {
       showAlert('error', 'Date of birth is required');
       return;
     }
-    
-    // Check if DOB is in the future
+
     const dobDate = new Date(formData.dob);
     if (dobDate > new Date()) {
       showAlert('error', 'Date of birth cannot be in the future');
       return;
     }
-    
-    // Check minimum age
+
     const age = calculateAge(formData.dob);
     if (age < 0) {
       showAlert('error', 'Invalid date of birth');
@@ -203,13 +198,13 @@ export default function PatientsPage() {
     }
 
     try {
-      // Prepare data matching backend PatientCreateRequest/PatientUpdateRequest
+      
       const patientData = {
         first: formData.first.trim(),
         middle: formData.middle?.trim() || null,
         last: formData.last.trim(),
         gender: formData.gender,
-        dob: formData.dob, // Already in YYYY-MM-DD format from date input
+        dob: formData.dob, 
         phone: formData.phone?.trim() || null,
       };
 
@@ -224,7 +219,7 @@ export default function PatientsPage() {
       fetchPatients();
     } catch (error) {
       const apiError = error as ApiError;
-      // Handle validation errors from backend
+      
       if (apiError.details && Array.isArray(apiError.details)) {
         showAlert('error', apiError.details.join(', '));
       } else {
@@ -233,7 +228,6 @@ export default function PatientsPage() {
     }
   };
 
-  // Calculate age from date of birth
   const calculateAge = (dob: string) => {
     const birthDate = new Date(dob);
     const today = new Date();
@@ -245,11 +239,9 @@ export default function PatientsPage() {
     return age;
   };
 
-  // Filter and sort patients
   const filteredPatients = useMemo(() => {
     let filtered = patients;
 
-    // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter(patient => {
         const fullName = `${patient.first} ${patient.middle || ''} ${patient.last}`.toLowerCase();
@@ -260,12 +252,10 @@ export default function PatientsPage() {
       });
     }
 
-    // Apply gender filter
     if (genderFilter !== 'All') {
       filtered = filtered.filter(patient => patient.gender === genderFilter);
     }
 
-    // Apply sorting
     filtered = [...filtered].sort((a, b) => {
       if (sortBy === 'name') {
         const nameA = `${a.first} ${a.last}`.toLowerCase();
@@ -279,7 +269,6 @@ export default function PatientsPage() {
     return filtered;
   }, [patients, searchQuery, genderFilter, sortBy]);
 
-  // Pagination
   const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
   const paginatedPatients = filteredPatients.slice(
     (currentPage - 1) * itemsPerPage,
@@ -341,14 +330,13 @@ export default function PatientsPage() {
     },
   ];
 
-  // Show loading spinner if not authorized
   if (isLoading && patients.length === 0) {
     return <LoadingSpinner fullScreen />;
   }
 
   return (
-    <div className="max-w-full overflow-hidden">
-      {/* Breadcrumb */}
+    <div className="max-w-full overflow-x-hidden">
+      {}
       <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row gap-2 sm:gap-0 items-start sm:items-center justify-between">
         <div className="flex items-center text-xs sm:text-sm text-gray-600">
           <span className="hover:text-primary-600 cursor-pointer">Dashboard</span>
@@ -365,7 +353,6 @@ export default function PatientsPage() {
         </Button>
       </div>
 
-      {/* Page Header */}
       <div className="mb-4 sm:mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
           <User className="w-6 h-6 sm:w-8 sm:h-8 text-primary-600" />
@@ -374,7 +361,6 @@ export default function PatientsPage() {
         <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage patient records and information</p>
       </div>
 
-      {/* Alert */}
       {alert && (
         <div className="mb-4">
           <Alert
@@ -385,33 +371,25 @@ export default function PatientsPage() {
         </div>
       )}
 
-      {/* Search and Actions */}
       <Card className="mb-4">
         <div className="flex flex-col gap-3 sm:gap-4">
-          {/* Search and Add Button */}
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between">
-            {/* Search */}
             <div className="relative flex-1 max-w-full sm:max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-              <input
+                <input
                 type="text"
-                placeholder="🔍 Search by name, phone, or ID..."
+                placeholder="Search by name, phone, or ID..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
-                  setCurrentPage(1); // Reset to first page on search
+                  setCurrentPage(1); 
                 }}
                 className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
 
-            {/* Add Patient Button - Hidden on mobile (already in header) */}
-            <Button onClick={() => handleOpenModal()} icon={<Plus className="w-4 h-4" />} className="hidden sm:flex">
-              Add Patient
-            </Button>
           </div>
 
-          {/* Filters and Sort */}
           <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <span className="text-sm font-medium text-gray-700">Filters:</span>
@@ -453,7 +431,6 @@ export default function PatientsPage() {
         </div>
       </Card>
 
-      {/* Patients Table */}
       <Card>
         <Table
           data={paginatedPatients as unknown as Record<string, unknown>[]}
@@ -462,7 +439,6 @@ export default function PatientsPage() {
           emptyMessage="No patients found. Add your first patient to get started."
         />
 
-        {/* Pagination */}
         {filteredPatients.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
             <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
@@ -523,7 +499,6 @@ export default function PatientsPage() {
         )}
       </Card>
 
-      {/* Add/Edit Patient Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -531,7 +506,6 @@ export default function PatientsPage() {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-3">
-          {/* First Name */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               First Name <span className="text-red-500">*</span>
@@ -547,7 +521,6 @@ export default function PatientsPage() {
             />
           </div>
 
-          {/* Middle Name */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               Middle Name
@@ -562,7 +535,6 @@ export default function PatientsPage() {
             />
           </div>
 
-          {/* Last Name */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               Last Name <span className="text-red-500">*</span>
@@ -578,9 +550,7 @@ export default function PatientsPage() {
             />
           </div>
 
-          {/* Gender & Date of Birth - 2 Column Layout */}
           <div className="grid grid-cols-2 gap-3">
-            {/* Gender */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Gender <span className="text-red-500">*</span>
@@ -601,7 +571,6 @@ export default function PatientsPage() {
               </div>
             </div>
 
-            {/* Date of Birth */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Date of Birth <span className="text-red-500">*</span>
@@ -614,7 +583,6 @@ export default function PatientsPage() {
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
               />
-              {/* Auto-calculated Age */}
               {formData.dob && (
                 <p className="mt-1 text-xs text-gray-600">
                   Age: {calculateAge(formData.dob)} years
@@ -623,7 +591,6 @@ export default function PatientsPage() {
             </div>
           </div>
 
-          {/* Phone Number */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               Phone Number
@@ -639,7 +606,6 @@ export default function PatientsPage() {
             <p className="mt-1 text-xs text-gray-500">Optional - max 20 characters</p>
           </div>
 
-          {/* Footer Actions */}
           <div className="pt-3 border-t border-gray-200 flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={handleCloseModal} size="sm">
               Cancel
@@ -651,7 +617,6 @@ export default function PatientsPage() {
         </form>
       </Modal>
 
-      {/* Patient Details Modal */}
       <Modal
         isOpen={isDetailModalOpen}
         onClose={handleCloseDetailModal}
@@ -660,7 +625,6 @@ export default function PatientsPage() {
       >
         {selectedPatient && (
           <div className="space-y-3">
-            {/* Patient Information */}
             <div className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-blue-50 to-gray-50">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-sm font-bold text-gray-900">Patient Information</h2>
@@ -706,7 +670,6 @@ export default function PatientsPage() {
               </div>
             </div>
 
-            {/* EHR Summary */}
             <div className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-green-50 to-gray-50">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-sm font-bold text-gray-900">EHR Summary</h2>
@@ -745,10 +708,9 @@ export default function PatientsPage() {
               
               {patientEHR.length > 0 ? (
                 <div className="space-y-3">
-                {/* Dental Chart Overview */}
                 <div>
                     <h3 className="text-xs font-semibold text-gray-900 flex items-center gap-1 mb-1">
-                      🦷 Dental Chart:
+                      <span className="flex items-center gap-1"><Activity className="w-4 h-4 text-gray-500" /> Dental Chart:</span>
                     </h3>
                     {(patientEHR[0].teeth || patientEHR[0].Teeth || patientEHR[0].toothRecords) && ((patientEHR[0].teeth || patientEHR[0].Teeth || patientEHR[0].toothRecords) || []).length > 0 ? (
                       <ul className="space-y-1 text-xs text-gray-700 ml-2">
@@ -767,10 +729,9 @@ export default function PatientsPage() {
                     )}
                   </div>
 
-                  {/* Medications Overview */}
                   <div>
                     <h3 className="text-xs font-semibold text-gray-900 flex items-center gap-1 mb-1">
-                      💊 Medications:
+                      <span className="flex items-center gap-1"><Pill className="w-4 h-4 text-gray-500" /> Medications:</span>
                     </h3>
                     {patientEHR[0].medications && patientEHR[0].medications.length > 0 ? (
                       <ul className="space-y-1 text-xs text-gray-700 ml-2">
@@ -789,10 +750,9 @@ export default function PatientsPage() {
                     )}
                   </div>
 
-                  {/* Treatments & Procedures Overview */}
                   <div>
                     <h3 className="text-xs font-semibold text-gray-900 flex items-center gap-1 mb-1">
-                      📝 Procedures:
+                      <span className="flex items-center gap-1"><FileText className="w-4 h-4 text-gray-500" /> Procedures:</span>
                     </h3>
                     {patientEHR[0].procedures && patientEHR[0].procedures.length > 0 ? (
                       <ul className="space-y-1 text-xs text-gray-700 ml-2">
@@ -819,7 +779,7 @@ export default function PatientsPage() {
               )}
             </div>
 
-            {/* Appointment-linked Changes */}
+            {}
             <div className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-purple-50 to-gray-50">
               <h2 className="text-sm font-bold text-gray-900 mb-2">Appointment-linked Changes</h2>
               {detailsLoading ? (
