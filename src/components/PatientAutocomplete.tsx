@@ -29,12 +29,10 @@ export default function PatientAutocomplete({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load all patients on mount
   useEffect(() => {
     loadPatients();
   }, []);
 
-  // Click outside to close
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -45,7 +43,6 @@ export default function PatientAutocomplete({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filter patients when search query changes
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredPatients([]);
@@ -59,7 +56,7 @@ export default function PatientAutocomplete({
       return fullName.includes(query) || phone.includes(query);
     });
 
-    setFilteredPatients(filtered.slice(0, 10)); // Limit to 10 results
+    setFilteredPatients(filtered.slice(0, 10)); 
     setSelectedIndex(0);
   }, [searchQuery, patients]);
 
@@ -128,7 +125,6 @@ export default function PatientAutocomplete({
 
   return (
     <div ref={wrapperRef} className="relative">
-      {/* Display selected patient */}
       {value ? (
         <div className="border-2 border-primary-500 rounded-lg p-4 bg-primary-50">
           <div className="flex items-center justify-between">
@@ -162,7 +158,6 @@ export default function PatientAutocomplete({
         </div>
       ) : (
         <>
-          {/* Search input */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="w-5 h-5 text-gray-400" />
@@ -188,7 +183,6 @@ export default function PatientAutocomplete({
             )}
           </div>
 
-          {/* Dropdown results */}
           {isOpen && filteredPatients.length > 0 && (
             <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-80 overflow-y-auto">
               {filteredPatients.map((patient, index) => (
@@ -221,10 +215,9 @@ export default function PatientAutocomplete({
             </div>
           )}
 
-          {/* No results message */}
           {isOpen && searchQuery && filteredPatients.length === 0 && !isLoading && (
             <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl p-4">
-              <p className="text-center text-gray-500">No patients found matching "{searchQuery}"</p>
+              <p className="text-center text-gray-500">No patients found matching &quot;{searchQuery}&quot;</p>
             </div>
           )}
         </>

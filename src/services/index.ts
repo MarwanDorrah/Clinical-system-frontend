@@ -1,4 +1,5 @@
 import { apiService } from './api.service';
+import { aiService } from './ai.service';
 import {
   AuthResponse,
   LoginRequest,
@@ -17,6 +18,8 @@ import {
   StockTransaction,
   StockTransactionCreateRequest,
   StockTransactionUpdateRequest,
+  XRay,
+  XRayRecordDto,
 } from '@/types/api.types';
 
 export const authService = {
@@ -102,6 +105,17 @@ export const ehrService = {
   createEHR: (data: EHRCreateRequest): Promise<{ message: string; ehr: EHR }> => apiService.post('/EHR', data),
   updateEHR: (id: string | number, data: EHRUpdateRequest): Promise<{ message: string; ehr: EHR }> => apiService.put(`/EHR/${id}`, data),
   deleteEHR: (id: string | number): Promise<{ message: string }> => apiService.delete(`/EHR/${id}`),
+  uploadXRay: (file: File, data: Partial<XRayRecordDto>): Promise<XRay> => {
+    const form = new FormData();
+    form.append('image', file);
+    
+    form.append('Type', data.type || '');
+    if (data.findings) form.append('Findings', data.findings);
+    if (data.takenAt) form.append('TakenAt', data.takenAt);
+    if (data.takenBy) form.append('TakenBy', data.takenBy);
+    if (data.notes) form.append('Notes', data.notes);
+    return apiService.upload('/EHR/XRay', form);
+  },
 };
 
 export const supplyService = {
@@ -144,3 +158,24 @@ export {
   getTokenInfo,
   logout as authLogout,
 } from './auth.service';
+
+export { aiService } from './ai.service';
+export type {
+  AutoCompleteRequest,
+  AutoCompleteResponse,
+  TerminologyRequest,
+  TerminologyResponse,
+  GenerateNotesRequest,
+  GenerateNotesResponse,
+  SuggestTreatmentsRequest,
+  SuggestTreatmentsResponse,
+  ExtractClinicalDataRequest,
+  ExtractClinicalDataResponse,
+  ParseEHRRequest,
+  ParseEHRResponse,
+  ParseEHRExtractedFields,
+  ParseEHRMedication,
+  ParseEHRProcedure,
+  ParseEHRAffectedTooth,
+  ParseEHRXRay,
+} from './ai.service';

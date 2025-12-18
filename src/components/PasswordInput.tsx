@@ -75,7 +75,6 @@ export default function PasswordInput({
       
       {showStrength && value && strength && (
         <div className="mt-2">
-          {/* Strength Bar */}
           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
             <div
               className={`h-full bg-${strength.color}-500 transition-all duration-300`}
@@ -83,12 +82,10 @@ export default function PasswordInput({
             />
           </div>
           
-          {/* Strength Label */}
           <p className={`text-xs text-${strength.color}-600 font-medium mt-1`}>
             Password Strength: {strength.label}
           </p>
           
-          {/* Requirements Checklist */}
           <div className="mt-2 space-y-1">
             {strength.requirements.map((req, index) => (
               <div key={index} className="flex items-center text-xs">

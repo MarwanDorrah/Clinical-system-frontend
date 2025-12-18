@@ -38,16 +38,16 @@ export default function Table<T extends Record<string, unknown>>({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <div className="inline-block min-w-full align-middle">
-        <div className="overflow-hidden border border-gray-200 rounded-lg">
+    <div className="w-full overflow-x-auto -mx-4 md:mx-0">
+      <div className="inline-block min-w-full align-middle px-4 md:px-0">
+        <div className="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
                 {columns.map((column) => (
                   <th
                     key={column.key}
-                    className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
                   >
                     {column.header}
                   </th>
@@ -62,7 +62,7 @@ export default function Table<T extends Record<string, unknown>>({
                   className={onRowClick ? 'cursor-pointer hover:bg-gray-50 transition-colors' : ''}
                 >
                   {columns.map((column) => (
-                    <td key={column.key} className="px-4 md:px-6 py-3 md:py-4 text-sm text-gray-900">
+                    <td key={column.key} className="px-3 md:px-6 py-3 md:py-4 text-sm text-gray-900">
                       <div className="max-w-xs truncate">
                         {column.render ? column.render(item) : (item[column.key] as React.ReactNode)}
                       </div>
