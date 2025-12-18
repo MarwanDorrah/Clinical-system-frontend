@@ -5,11 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Clock, X } from 'lucide-react';
 import Button from './Button';
 
-/**
- * Token Expiration Warning Component
- * Displays a warning banner when token is about to expire
- * Based on JWT Frontend Guide recommendations
- */
 export default function TokenExpirationWarning() {
   const { isAuthenticated, tokenExpiresIn, isTokenExpiringSoon, refreshAuthStatus } = useAuth();
   const [isDismissed, setIsDismissed] = useState(false);
@@ -21,7 +16,6 @@ export default function TokenExpirationWarning() {
       return;
     }
 
-    // Update time remaining display
     const updateTimer = () => {
       const minutes = Math.floor(tokenExpiresIn / 60000);
       const seconds = Math.floor((tokenExpiresIn % 60000) / 1000);
@@ -67,7 +61,7 @@ export default function TokenExpirationWarning() {
               size='sm'
               variant='outline'
               onClick={() => {
-                // Refresh token by reloading - in production, implement refresh token mechanism
+                
                 window.location.reload();
               }}
               className='bg-white text-yellow-700 hover:bg-yellow-50 border-white'
