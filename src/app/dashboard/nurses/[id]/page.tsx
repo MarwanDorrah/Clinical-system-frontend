@@ -81,8 +81,23 @@ export default function NurseDetailPage() {
     }
   };
 
-  const upcomingAppointments = appointments.filter(apt => new Date(apt.date) >= new Date());
-  const pastAppointments = appointments.filter(apt => new Date(apt.date) < new Date());
+  const now = new Date();
+  const parseAptDateTime = (apt: Appointment) => {
+    try {
+      const datePart = typeof apt.date === 'string' ? apt.date.split('T')[0] : apt.date;
+      return new Date(`${datePart} ${apt.time}`);
+    } catch {
+      return new Date(apt.date);
+    }
+  };
+
+  const upcomingAppointments = appointments
+    .filter(apt => parseAptDateTime(apt).getTime() >= now.getTime())
+    .sort((a, b) => parseAptDateTime(a).getTime() - parseAptDateTime(b).getTime());
+
+  const pastAppointments = appointments
+    .filter(apt => parseAptDateTime(apt).getTime() < now.getTime())
+    .sort((a, b) => parseAptDateTime(b).getTime() - parseAptDateTime(a).getTime());
 
   const appointmentColumns = [
     {
@@ -131,7 +146,7 @@ export default function NurseDetailPage() {
 
   return (
     <div>
-      {/* Breadcrumb */}
+      {}
       <div className="mb-4 flex items-center text-sm text-gray-600">
         <span className="hover:text-primary-600 cursor-pointer" onClick={() => router.push('/dashboard')}>
           Dashboard
@@ -150,7 +165,7 @@ export default function NurseDetailPage() {
         </div>
       )}
 
-      {/* Header */}
+      {}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="secondary" size="sm" onClick={() => router.push('/dashboard/nurses')} icon={<ArrowLeft className="w-4 h-4" />}>
@@ -166,7 +181,7 @@ export default function NurseDetailPage() {
         </Button>
       </div>
 
-      {/* Nurse Information */}
+      {}
       <Card className="mb-6">
         <div className="flex items-start space-x-6">
           <div className="w-24 h-24 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -202,7 +217,6 @@ export default function NurseDetailPage() {
         </div>
       </Card>
 
-      {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
           <div className="flex items-center justify-between">
@@ -233,7 +247,6 @@ export default function NurseDetailPage() {
         </Card>
       </div>
 
-      {/* Recent Appointments */}
       <Card className="mb-6">
         <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
           <Calendar className="w-5 h-5 text-primary-600" />
@@ -247,7 +260,6 @@ export default function NurseDetailPage() {
         />
       </Card>
 
-      {/* Edit Modal */}
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Nurse Profile">
         <form onSubmit={handleEdit}>
           <Input

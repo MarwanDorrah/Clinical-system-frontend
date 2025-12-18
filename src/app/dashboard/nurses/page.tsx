@@ -56,7 +56,9 @@ export default function NursesPage() {
 
   const showAlert = (type: 'success' | 'error', message: string) => {
     setAlert({ type, message });
-    setTimeout(() => setAlert(null), 5000);
+    if (type === 'success') {
+      setTimeout(() => setAlert(null), 8000);
+    }
   };
 
   const handleOpenModal = (nurse?: Nurse) => {
@@ -102,26 +104,22 @@ export default function NursesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate name
     const nameError = validateMinLength(formData.name, 2, 'Name');
     if (nameError) {
       showAlert('error', nameError);
       return;
     }
 
-    // Validate email
     if (!validateEmail(formData.email)) {
       showAlert('error', 'Please enter a valid email address');
       return;
     }
 
-    // Validate phone
     if (!validatePhone(formData.phone)) {
       showAlert('error', 'Phone must be in format: XXX-XXX-XXXX');
       return;
     }
 
-    // Validate password for new nurses
     if (!editingNurse) {
       const passwordValidation = validatePassword(formData.password);
       if (!passwordValidation.valid) {
@@ -206,7 +204,6 @@ export default function NursesPage() {
 
   return (
     <div>
-      {/* Breadcrumb */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center text-sm text-gray-600">
           <span className="hover:text-primary-600 cursor-pointer">Dashboard</span>
@@ -222,7 +219,6 @@ export default function NursesPage() {
         </Button>
       </div>
 
-      {/* Page Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
           <Heart className="w-8 h-8 text-primary-600" />
@@ -231,24 +227,19 @@ export default function NursesPage() {
         <p className="text-gray-600 mt-2">Manage nurse information and profiles</p>
       </div>
 
-      {/* Alert */}
       {alert && (
         <div className="mb-4">
           <Alert
             type={alert.type}
             message={alert.message}
             onClose={() => setAlert(null)}
+            autoClose={alert.type !== 'error'}
+            duration={alert.type === 'success' ? 8000 : 20000}
           />
         </div>
       )}
 
-      {/* Nurses Table */}
       <Card>
-        <div className="mb-4 flex justify-end">
-          <Button onClick={() => handleOpenModal()} icon={<Plus className="w-4 h-4" />}>
-            Add Nurse
-          </Button>
-        </div>
 
         <Table
           data={nurses as unknown as Record<string, unknown>[]}
@@ -258,7 +249,6 @@ export default function NursesPage() {
         />
       </Card>
 
-      {/* Add/Edit Nurse Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -271,7 +261,7 @@ export default function NursesPage() {
             name="name"
             value={formData.name}
             onChange={handleChange}
-            placeholder="e.g., Jane Smith"
+            placeholder="e.g., Fatima Ali"
             required
           />
           <Input
@@ -289,7 +279,7 @@ export default function NursesPage() {
             type="email"
             value={formData.email}
             onChange={handleChange}
-            placeholder="e.g., nurse@clinic.com"
+            placeholder="e.g., fatima.ali@clinic.com"
             required
           />
           {!editingNurse && (
@@ -313,7 +303,6 @@ export default function NursesPage() {
         </form>
       </Modal>
 
-      {/* Nurse Details Modal */}
       <NurseDetailsModal
         isOpen={isNurseDetailsModalOpen}
         nurse={selectedNurse}
@@ -329,13 +318,31 @@ export default function NursesPage() {
         onConfirm={async () => {
           if (!deleteConfirm.nurse) return;
           try {
-            // Check for appointments assigned to this nurse
+            
             const allAppointments = await appointmentService.getAllAppointments();
             const nurseAppointments = allAppointments.filter(
               apt => apt.nurse_ID === deleteConfirm.nurse!.nursE_ID
             );
             
             if (nurseAppointments.length > 0) {
+              
+              try {
+                const allEhrs = await ehrService.getAllEHRs();
+                const appointmentIds = new Set(nurseAppointments.map(a => a.appointment_ID).filter(Boolean));
+                const linkedEhrs = allEhrs.filter(ehr => appointmentIds.has(ehr.appointmentId || ehr.AppointmentId));
+
+                if (linkedEhrs.length > 0) {
+                  showAlert('error', `Cannot delete nurse. ${linkedEhrs.length} EHR record(s) are linked to appointments assigned to this nurse.`);
+                  setDeleteConfirm({ isOpen: false, nurse: null });
+                  return;
+                }
+              } catch (e) {
+                console.error('Failed to verify EHR links for nurse deletion', e);
+                showAlert('error', 'Cannot delete nurse right now because EHR verification failed.');
+                setDeleteConfirm({ isOpen: false, nurse: null });
+                return;
+              }
+
               showAlert('error', `Cannot delete nurse. There are ${nurseAppointments.length} appointment(s) assigned to this nurse. Please reassign or delete those appointments first.`);
               setDeleteConfirm({ isOpen: false, nurse: null });
               return;
