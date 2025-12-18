@@ -2,6 +2,7 @@
 
 import { ReactNode, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { saveScrollPosition, restoreScrollPosition } from '@/utils/scroll.utils';
 
 interface PageTransitionProps {
   children: ReactNode;
@@ -13,11 +14,19 @@ export default function PageTransition({ children }: PageTransitionProps) {
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
+    
+    const currentPath = pathname;
+    saveScrollPosition(currentPath);
+
     setIsTransitioning(true);
     
     const timer = setTimeout(() => {
       setDisplayChildren(children);
       setIsTransitioning(false);
+
+      setTimeout(() => {
+        restoreScrollPosition(pathname, 30000);
+      }, 100);
     }, 150);
 
     return () => clearTimeout(timer);
