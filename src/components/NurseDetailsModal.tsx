@@ -8,7 +8,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { Nurse, Appointment, Patient } from '@/types/api.types';
 import { appointmentService, patientService } from '@/services';
 import { formatDateForDisplay, formatTimeForDisplay } from '@/utils/date.utils';
-import { Phone, Mail, Users, Heart, Edit, FileText, Calendar } from 'lucide-react';
+import { Phone, Mail, Users, Heart, Edit, FileText, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface NurseDetailsModalProps {
   isOpen: boolean;
@@ -26,6 +26,8 @@ export default function NurseDetailsModal({
   const router = useRouter();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [patientPage, setPatientPage] = useState(0);
+  const PATIENTS_PER_PAGE = 3;
 
   useEffect(() => {
     if (isOpen && nurse) {
@@ -39,11 +41,9 @@ export default function NurseDetailsModal({
     try {
       setIsLoading(true);
 
-      // Fetch all appointments and patients
       const allAppointments = (await appointmentService.getAllAppointments()) as Appointment[];
       const allPatients = (await patientService.getAllPatients()) as Patient[];
 
-      // Get unique patients assigned to this nurse
       const nurseAppointmentPatientIds = new Set(
         allAppointments
           .filter((apt) => apt.nurse_ID === (nurse.nursE_ID || nurse.nurse_ID))
@@ -89,6 +89,29 @@ export default function NurseDetailsModal({
       onClose={onClose}
       title="Nurse Details"
       size="lg"
+      disableBackdropClose={true}
+      footer={(
+        <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+          >
+            Close
+          </Button>
+          <Button 
+            onClick={() => {
+              if (onEdit && nurse) {
+                onEdit(nurse);
+                onClose();
+              }
+            }}
+            icon={<Edit className="w-4 h-4" />}
+          >
+            Edit Nurse Info
+          </Button>
+        </div>
+      )}
     >
       {isLoading ? (
         <div className="flex justify-center py-8">
@@ -96,60 +119,89 @@ export default function NurseDetailsModal({
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Nurse Information Section */}
-          <div className="border-b pb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          {}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <Heart className="w-5 h-5 text-primary-600" />
               Nurse Information
             </h3>
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Name</p>
-                <p className="text-lg font-semibold text-gray-900">
+                <p className="text-xs text-gray-600 mb-1">Name</p>
+                <p className="text-sm font-semibold text-gray-900">
                   {nurse.name}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Phone className="w-5 h-5 text-gray-500" />
+                <Phone className="w-4 h-4 text-gray-500" />
                 <div>
-                  <p className="text-sm text-gray-600">Phone</p>
-                  <p className="text-gray-900">{nurse.phone}</p>
+                  <p className="text-xs text-gray-600">Phone</p>
+                  <p className="text-sm text-gray-900">{nurse.phone}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Mail className="w-5 h-5 text-gray-500" />
+                <Mail className="w-4 h-4 text-gray-500" />
                 <div>
-                  <p className="text-sm text-gray-600">Email</p>
-                  <p className="text-gray-900">{nurse.email}</p>
+                  <p className="text-xs text-gray-600">Email</p>
+                  <p className="text-sm text-gray-900">{nurse.email}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Assigned Patients Section */}
-          <div className="border-b pb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Assigned Patients
-            </h3>
+          {}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary-600" />
+                Assigned Patients ({patients.length})
+              </h3>
+              {patients.length > PATIENTS_PER_PAGE && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPatientPage(p => Math.max(0, p - 1))}
+                    disabled={patientPage === 0}
+                    className="p-1.5 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs text-gray-600">
+                    {patientPage + 1} / {Math.ceil(patients.length / PATIENTS_PER_PAGE)}
+                  </span>
+                  <button
+                    onClick={() => setPatientPage(p => Math.min(Math.ceil(patients.length / PATIENTS_PER_PAGE) - 1, p + 1))}
+                    disabled={patientPage >= Math.ceil(patients.length / PATIENTS_PER_PAGE) - 1}
+                    className="p-1.5 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
             {patients.length === 0 ? (
               <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded">
                 No patients assigned yet
               </p>
             ) : (
               <div className="space-y-3">
-                {patients.map((patient) => (
+                {patients.slice(patientPage * PATIENTS_PER_PAGE, (patientPage + 1) * PATIENTS_PER_PAGE).map((patient) => (
                   <div
                     key={patient.patient_ID}
-                    className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition"
+                    className="p-3 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition"
                   >
-                    <p className="font-medium text-gray-900">
-                      {patient.first} {patient.last}
-                    </p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Age: {getPatientAge(patient.patient_ID)} years
-                    </p>
-                    <div className="flex gap-2 mt-3">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-medium text-gray-900 text-sm">
+                          {patient.first} {patient.last}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          Age: {getPatientAge(patient.patient_ID)} years · ID: {patient.patient_ID}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
                       <Button 
                         size="sm" 
                         variant="outline"
@@ -157,9 +209,9 @@ export default function NurseDetailsModal({
                           onClose();
                           router.push(`/dashboard/ehr?patient=${patient.patient_ID}`);
                         }}
-                        icon={<FileText className="w-4 h-4" />}
+                        icon={<FileText className="w-3 h-3" />}
                       >
-                        View EHR
+                        <span className="text-xs">EHR</span>
                       </Button>
                       <Button 
                         size="sm" 
@@ -168,43 +220,15 @@ export default function NurseDetailsModal({
                           onClose();
                           router.push(`/dashboard/appointments?patient=${patient.patient_ID}`);
                         }}
-                        icon={<Calendar className="w-4 h-4" />}
+                        icon={<Calendar className="w-3 h-3" />}
                       >
-                        View Appointments
+                        <span className="text-xs">Appointments</span>
                       </Button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-
-          {/* Actions Section */}
-          <div className="pt-4 flex gap-3">
-            <Button 
-              className="flex-1"
-              onClick={() => {
-                if (onEdit && nurse) {
-                  onEdit(nurse);
-                  onClose();
-                }
-              }}
-              icon={<Edit className="w-4 h-4" />}
-            >
-              Edit Nurse Info
-            </Button>
-          </div>
-
-          {/* Close Button */}
-          <div className="pt-4 border-t border-gray-200 flex justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onClose}
-              className="w-full"
-            >
-              Close
-            </Button>
           </div>
         </div>
       )}

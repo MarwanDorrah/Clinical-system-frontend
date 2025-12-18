@@ -31,12 +31,11 @@ export default function ImageUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = (file: File): string | null => {
-    // Check file type
+    
     if (!file.type.startsWith('image/')) {
       return 'File must be an image';
     }
 
-    // Check file size
     const sizeMB = file.size / (1024 * 1024);
     if (sizeMB > maxSizeMB) {
       return `File size must be less than ${maxSizeMB}MB`;
@@ -49,14 +48,12 @@ export default function ImageUpload({
     if (!files || files.length === 0) return;
 
     const fileArray = Array.from(files);
-    
-    // Check max files limit
+
     if (selectedFiles.length + fileArray.length > maxFiles) {
       alert(`Maximum ${maxFiles} files allowed`);
       return;
     }
 
-    // Validate and prepare files
     const newFiles: SelectedFile[] = fileArray.map(file => {
       const error = validateFile(file);
       return {
@@ -68,8 +65,7 @@ export default function ImageUpload({
 
     const updatedFiles = [...selectedFiles, ...newFiles];
     setSelectedFiles(updatedFiles);
-    
-    // Notify parent of valid files
+
     if (onChange) {
       const validFiles = updatedFiles.filter(f => !f.error).map(f => f.file);
       onChange(validFiles);
@@ -115,8 +111,7 @@ export default function ImageUpload({
       const updated = [...prev];
       URL.revokeObjectURL(updated[index].preview);
       updated.splice(index, 1);
-      
-      // Notify parent
+
       if (onChange) {
         const validFiles = updated.filter(f => !f.error).map(f => f.file);
         onChange(validFiles);
@@ -128,7 +123,7 @@ export default function ImageUpload({
 
   return (
     <div className="space-y-4">
-      {/* Drop Zone */}
+      {}
       <div
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -152,7 +147,7 @@ export default function ImageUpload({
         />
 
         <div className="space-y-4">
-          {/* Icon */}
+          {}
           <div className="flex justify-center">
             <div className={`
               w-16 h-16 rounded-full flex items-center justify-center
@@ -162,7 +157,7 @@ export default function ImageUpload({
             </div>
           </div>
 
-          {/* Text */}
+          {}
           <div>
             <p className="text-lg font-semibold text-gray-900 mb-1">
               {isDragging ? 'Drop images here' : 'Drag & drop images here'}
@@ -179,7 +174,7 @@ export default function ImageUpload({
             </p>
           </div>
 
-          {/* Info */}
+          {}
           <div className="text-xs text-gray-500">
             <p>Maximum {maxFiles} files • Up to {maxSizeMB}MB each</p>
             <p>Supported formats: JPG, PNG, GIF, WebP</p>
@@ -187,7 +182,7 @@ export default function ImageUpload({
         </div>
       </div>
 
-      {/* Existing Images */}
+      {}
       {existingImages.length > 0 && (
         <div>
           <h4 className="text-sm font-semibold text-gray-700 mb-2">Existing Images</h4>
@@ -219,7 +214,7 @@ export default function ImageUpload({
         </div>
       )}
 
-      {/* Selected Files Preview */}
+      {}
       {selectedFiles.length > 0 && (
         <div>
           <h4 className="text-sm font-semibold text-gray-700 mb-2">
@@ -236,7 +231,7 @@ export default function ImageUpload({
                   />
                 </div>
 
-                {/* Remove Button */}
+                {}
                 <button
                   type="button"
                   onClick={() => removeSelectedFile(index)}
@@ -245,7 +240,7 @@ export default function ImageUpload({
                   <X className="w-4 h-4" />
                 </button>
 
-                {/* File Info */}
+                {}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                   <p className="text-white text-xs font-medium truncate">
                     {file.file.name}
@@ -258,7 +253,7 @@ export default function ImageUpload({
                   )}
                 </div>
 
-                {/* Error Badge */}
+                {}
                 {file.error && (
                   <div className="absolute top-2 left-2 px-2 py-0.5 bg-red-500 text-white text-[10px] font-semibold rounded-full">
                     Invalid
