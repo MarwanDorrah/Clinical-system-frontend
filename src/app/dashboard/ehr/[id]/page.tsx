@@ -11,7 +11,7 @@ import { ehrService, patientService, appointmentService } from '@/services';
 import { EHR, Patient, Appointment, ToothRecord } from '@/types/api.types';
 import { getEhrId } from '@/utils/ehr.utils';
 import { formatDateForDisplay } from '@/utils/date.utils';
-import { FileText, Pill, Stethoscope, Calendar, Edit, History } from 'lucide-react';
+import { FileText, Pill, Stethoscope, Calendar, Edit, History, User, Activity, Printer } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function EHRViewPage() {
@@ -24,9 +24,9 @@ export default function EHRViewPage() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedTooth, setSelectedTooth] = useState<ToothRecord | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Redirect if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/auth/login');
@@ -47,7 +47,6 @@ export default function EHRViewPage() {
     try {
       setIsLoading(true);
 
-      // Fetch EHR data
       const ehrData = await ehrService.getEHRById(ehrId) as EHR;
       setEhr(ehrData);
       
@@ -55,12 +54,10 @@ export default function EHRViewPage() {
       console.log('Teeth array:', ehrData.teeth || ehrData.Teeth);
       console.log('Number of teeth:', (ehrData.teeth || ehrData.Teeth)?.length);
 
-      // Fetch patient data
       if (ehrData.patient_ID) {
         const patientData = await patientService.getPatientById(ehrData.patient_ID) as Patient;
         setPatient(patientData);
 
-        // Fetch appointments for this patient
         try {
           const appointmentData = await appointmentService.getAppointmentsByPatient(ehrData.patient_ID) as Appointment[];
           setAppointments(appointmentData);
@@ -70,7 +67,6 @@ export default function EHRViewPage() {
         }
       }
 
-      // Set first tooth as selected if available
       const teeth = ehrData.teeth || ehrData.Teeth || [];
       if (teeth && teeth.length > 0) {
         setSelectedTooth(teeth[0]);
@@ -135,7 +131,6 @@ export default function EHRViewPage() {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb Navigation */}
       <Breadcrumb
         items={[
           { label: 'Dashboard', href: '/dashboard' },
@@ -144,7 +139,6 @@ export default function EHRViewPage() {
         ]}
       />
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <FileText className="w-8 h-8 text-primary-600" />
@@ -159,115 +153,154 @@ export default function EHRViewPage() {
         >
           Edit EHR
         </Button>
+        <Button
+          variant="outline"
+          onClick={() => router.push(`/dashboard/ehr/print/${ehrId}`)}
+          icon={<Printer className="w-4 h-4" />}
+        >
+          Print EHR
+        </Button>
       </div>
 
-      {/* Patient Information Card */}
       <Card className="border-2 border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            🧑 Patient Information
+            <User className="w-5 h-5 text-gray-600" /> Patient Information
           </h2>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="font-semibold text-gray-900">Name:</span>{' '}
-            <span className="text-gray-700">{patient.first} {patient.middle ? patient.middle + ' ' : ''}{patient.last}</span>
+            <div>
+              <span className="font-semibold text-gray-900">Name:</span>{' '}
+              <span className="text-gray-700">{patient.first} {patient.middle ? patient.middle + ' ' : ''}{patient.last}</span>
+            </div>
+            <div>
+              <span className="font-semibold text-gray-900">Age:</span>{' '}
+              <span className="text-gray-700">{calculateAge(patient.dob)}</span>
+            </div>
+            <div>
+              <span className="font-semibold text-gray-900">Gender:</span>{' '}
+              <span className="text-gray-700">{patient.gender}</span>
+            </div>
+            <div>
+              <span className="font-semibold text-gray-900">Last Visit:</span>{' '}
+              <span className="text-gray-700">{getLastVisit()}</span>
+            </div>
+            <div>
+              <span className="font-semibold text-gray-900">Phone:</span>{' '}
+              <span className="text-gray-700">{patient.phone || 'N/A'}</span>
+            </div>
           </div>
-          <div>
-            <span className="font-semibold text-gray-900">Age:</span>{' '}
-            <span className="text-gray-700">{calculateAge(patient.dob)}</span>
-          </div>
-          <div>
-            <span className="font-semibold text-gray-900">Gender:</span>{' '}
-            <span className="text-gray-700">{patient.gender}</span>
-          </div>
-          <div>
-            <span className="font-semibold text-gray-900">Last Visit:</span>{' '}
-            <span className="text-gray-700">{getLastVisit()}</span>
-          </div>
-          <div>
-            <span className="font-semibold text-gray-900">Phone:</span>{' '}
-            <span className="text-gray-700">{patient.phone || 'N/A'}</span>
-          </div>
-        </div>
-      </Card>
+        </Card>
 
-      {/* Dental Chart Card */}
       <Card className="border-2 border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            🦷 Dental Chart (Select Tooth from Diagram)
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-gray-600" /> Dental Chart (Select Tooth from Diagram)
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Tooth Chart */}
-          <div className="lg:col-span-2">
+        <div className="space-y-6">
+          {}
+          <div>
             <ToothChart
               selectedTeeth={ehr.teeth || ehr.Teeth || []}
               onToothClick={handleToothClick}
               readonly={false}
             />
             <p className="text-sm text-gray-600 mt-4 text-center">
-              Click on a tooth to view/edit status
+              Click on a tooth to view details
             </p>
           </div>
 
-          {/* Teeth Details List */}
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            <h3 className="text-sm font-bold text-gray-900 sticky top-0 bg-white">
-              Tooth Details
-            </h3>
-            {(ehr.teeth || ehr.Teeth) && ((ehr.teeth || ehr.Teeth) || []).length > 0 ? (
-              <div className="space-y-2">
+          {selectedTooth && (
+            <div className="border-t-2 border-gray-200 pt-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-blue-600" />
+                Tooth #{selectedTooth.ToothNumber || selectedTooth.toothNumber} Details
+              </h3>
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-lg p-4 shadow-sm">
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Condition</p>
+                    <p className="text-base font-bold text-gray-900">
+                      {(selectedTooth.Condition || selectedTooth.condition || 'Healthy').trim()}
+                    </p>
+                  </div>
+                  
+                  {(selectedTooth.TreatmentPlanned || selectedTooth.treatmentPlanned) && (
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Treatment Planned</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {selectedTooth.TreatmentPlanned || selectedTooth.treatmentPlanned}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {(selectedTooth.TreatmentCompleted || selectedTooth.treatmentCompleted) && (
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Treatment Status</p>
+                      <p className="text-base font-medium text-green-700">
+                        {selectedTooth.TreatmentCompleted || selectedTooth.treatmentCompleted}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {(selectedTooth.Surfaces || selectedTooth.surfaces) && (
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Surfaces Affected</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {selectedTooth.Surfaces || selectedTooth.surfaces}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                {(selectedTooth.Notes || selectedTooth.notes) && (
+                  <div className="bg-white rounded-lg p-4 shadow-sm mt-4">
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Notes</p>
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      {selectedTooth.Notes || selectedTooth.notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {}
+          {(ehr.teeth || ehr.Teeth) && ((ehr.teeth || ehr.Teeth) || []).length > 0 && (
+            <details className="border-t-2 border-gray-200 pt-6">
+              <summary className="text-sm font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors">
+                View All Teeth Records ({((ehr.teeth || ehr.Teeth) || []).length} teeth)
+              </summary>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mt-4">
                 {((ehr.teeth || ehr.Teeth) || []).map((tooth) => (
-                  <div 
+                  <button
                     key={tooth.ToothRecord_ID || tooth.toothRecord_ID}
                     onClick={() => handleToothClick(tooth.ToothNumber || tooth.toothNumber || 0)}
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
                       selectedTooth?.ToothNumber === (tooth.ToothNumber || tooth.toothNumber) || 
                       selectedTooth?.toothNumber === (tooth.ToothNumber || tooth.toothNumber)
-                        ? 'bg-blue-50 border-blue-400'
-                        : 'bg-gray-50 border-gray-200 hover:border-blue-300'
+                        ? 'bg-blue-50 border-blue-400 shadow-md'
+                        : 'bg-gray-50 border-gray-200 hover:border-blue-300 hover:shadow-sm'
                     }`}
                   >
                     <p className="font-semibold text-gray-900 text-sm mb-1">
                       Tooth #{tooth.ToothNumber || tooth.toothNumber}
                     </p>
-                    <div className="text-xs space-y-1 text-gray-700">
-                      <p>
-                        <span className="font-medium">Condition:</span> {tooth.Condition || tooth.condition || 'Normal'}
-                      </p>
-                      {(tooth.TreatmentPlanned || tooth.treatmentPlanned) && (
-                        <p>
-                          <span className="font-medium">Planned:</span> {tooth.TreatmentPlanned || tooth.treatmentPlanned}
-                        </p>
-                      )}
-                      {(tooth.TreatmentCompleted || tooth.treatmentCompleted) && (
-                        <p>
-                          <span className="font-medium">Completed:</span> {tooth.TreatmentCompleted || tooth.treatmentCompleted}
-                        </p>
-                      )}
-                      {(tooth.Surfaces || tooth.surfaces) && (
-                        <p>
-                          <span className="font-medium">Surfaces:</span> {tooth.Surfaces || tooth.surfaces}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                    <p className="text-xs text-gray-600 truncate">
+                      {(tooth.Condition || tooth.condition || 'Healthy').trim()}
+                    </p>
+                  </button>
                 ))}
               </div>
-            ) : (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
-                <p className="text-sm text-gray-500">No tooth records available</p>
-              </div>
-            )}
-          </div>
+            </details>
+          )}
         </div>
       </Card>
 
-      {/* Medications Card */}
+      {}
       <Card className="border-2 border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -309,7 +342,7 @@ export default function EHRViewPage() {
         )}
       </Card>
 
-      {/* Treatments & Procedures Card */}
+      {}
       <Card className="border-2 border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -349,7 +382,7 @@ export default function EHRViewPage() {
         )}
       </Card>
 
-      {/* Appointment-linked Changes Card */}
+      {}
       <Card className="border-2 border-gray-200">
         <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
           <Calendar className="w-5 h-5" /> Appointment-linked Changes
@@ -360,14 +393,60 @@ export default function EHRViewPage() {
             {appointments.map((apt) => (
               <div 
                 key={apt.appointment_ID}
-                className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden"
               >
-                <p className="font-semibold text-gray-900">
-                  Appointment ID: {apt.ref_Num} – {formatDateForDisplay(apt.date)}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">
-                  • EHR updated: {apt.type}
-                </p>
+                <div className="p-3 flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">
+                      Appointment ID: {apt.ref_Num} – {formatDateForDisplay(apt.date)}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Type: {apt.type} • Time: {apt.time}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={selectedAppointment?.appointment_ID === apt.appointment_ID ? "primary" : "outline"}
+                    onClick={() => setSelectedAppointment(selectedAppointment?.appointment_ID === apt.appointment_ID ? null : apt)}
+                    className="flex-shrink-0"
+                  >
+                    {selectedAppointment?.appointment_ID === apt.appointment_ID ? 'Hide' : 'View'} Details
+                  </Button>
+                </div>
+                
+                {selectedAppointment?.appointment_ID === apt.appointment_ID && (
+                  <div className="px-3 pb-3 pt-2 border-t border-gray-200 bg-white">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Appointment Details</p>
+                        <div className="space-y-2 text-sm">
+                          <p><span className="font-medium text-gray-700">Reference:</span> {apt.ref_Num}</p>
+                          <p><span className="font-medium text-gray-700">Date:</span> {formatDateForDisplay(apt.date)}</p>
+                          <p><span className="font-medium text-gray-700">Time:</span> {apt.time}</p>
+                          <p><span className="font-medium text-gray-700">Type:</span> {apt.type}</p>
+                          {apt.status && (
+                            <p><span className="font-medium text-gray-700">Status:</span> <span className="capitalize inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">{apt.status}</span></p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Healthcare Providers</p>
+                        <div className="space-y-2 text-sm">
+                          {apt.doctor && (
+                            <p><span className="font-medium text-gray-700">Doctor:</span> {apt.doctor.name}</p>
+                          )}
+                          {apt.nurse && (
+                            <p><span className="font-medium text-gray-700">Nurse:</span> {apt.nurse.name}</p>
+                          )}
+                          {apt.patient && (
+                            <p><span className="font-medium text-gray-700">Patient:</span> {apt.patient.first} {apt.patient.last}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -376,7 +455,7 @@ export default function EHRViewPage() {
         )}
       </Card>
 
-      {/* EHR History Card */}
+      {}
       <Card className="border-2 border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -407,7 +486,7 @@ export default function EHRViewPage() {
         </div>
       </Card>
 
-      {/* Footer Actions */}
+      {}
       <div className="flex justify-end gap-2 pt-4">
         <Button
           variant="outline"

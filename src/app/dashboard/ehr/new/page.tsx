@@ -1,16 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronUp, Plus, X, Save, FileText, Upload } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, X, Save, FileText, Upload, Brain } from 'lucide-react';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Input from '@/components/Input';
+import ToothChart from '@/components/ToothChart';
+import { TOOTH_CONDITIONS } from '@/components/ToothChart';
 import PatientAutocomplete from '@/components/PatientAutocomplete';
 import AutoExpandTextarea from '@/components/AutoExpandTextarea';
+import ToastNotification from '@/components/ToastNotification';
 import { useAuth } from '@/contexts/AuthContext';
 import { Patient, Appointment, EHR } from '@/types/api.types';
 import { patientService, appointmentService, ehrService } from '@/services';
+import { AIAutoCompleteTextarea } from '@/components/AIAutoCompleteTextarea';
+import { AITerminologyInput } from '@/components/AITerminologyInput';
+import { AIGenerateNotesModal } from '@/components/AIGenerateNotesModal';
+import { AITreatmentSuggestions } from '@/components/AITreatmentSuggestions';
+import { AIParseEHRModal } from '@/components/AIParseEHRModal';
+import { ParseEHRExtractedFields } from '@/services';
 
 interface Section {
   id: number;
@@ -33,20 +42,9 @@ interface Procedure {
   id: string;
   code: string;
   description: string;
-  toothNumber: string;
+  toothNumber: number;
   status: string;
   performedAt: string;
-  notes: string;
-}
-
-interface ToothRecord {
-  id: string;
-  toothNumber: number;
-  condition: string;
-  treatmentPlanned: string;
-  treatmentCompleted: boolean;
-  completedDate: string;
-  surfacesAffected: string;
   notes: string;
 }
 
@@ -66,6 +64,11 @@ export default function NewEHRPage() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState('');
+  const [formErrors, setFormErrors] = useState<{ patient?: string; appointment?: string; diagnosis?: string }>({});
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning' | 'info'; message: string } | null>(null);
+
+  const [showGenerateNotesModal, setShowGenerateNotesModal] = useState(false);
+  const [showParseEHRModal, setShowParseEHRModal] = useState(false);
   
   const [sections, setSections] = useState<Section[]>([
     { id: 1, title: 'SECTION 1: GENERAL MEDICAL INFORMATION', isOpen: true },
@@ -77,7 +80,6 @@ export default function NewEHRPage() {
     { id: 7, title: 'SECTION 7: TREATMENT & RECOMMENDATIONS', isOpen: true },
   ]);
 
-  // Form data
   const [allergies, setAllergies] = useState('');
   const [medicalAlerts, setMedicalAlerts] = useState('');
   const [medicalHistory, setMedicalHistory] = useState('');
@@ -88,28 +90,43 @@ export default function NewEHRPage() {
   const [clinicalNotes, setClinicalNotes] = useState('');
   const [recommendations, setRecommendations] = useState('');
 
-  // Dynamic arrays
   const [medications, setMedications] = useState<Medication[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
-  const [toothRecords, setToothRecords] = useState<ToothRecord[]>([]);
+
+  interface LocalToothRecord {
+    id: string;
+    toothNumber: number;
+    condition: string;
+    treatmentPlanned: string;
+    treatmentCompleted: boolean;
+    completedDate: string;
+    surfacesAffected: string;
+    notes: string;
+  }
+
+  const [toothRecords, setToothRecords] = useState<LocalToothRecord[]>([]);
   const [xrays, setXRays] = useState<XRay[]>([]);
+  const [pendingXRayFiles, setPendingXRayFiles] = useState<{ id: string; file: File }[]>([]);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [customToothCondition, setCustomToothCondition] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Only doctors can create EHR records
+    
     if (!isDoctor()) {
       router.push('/dashboard/ehr');
       return;
     }
     loadAppointments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+    
+  }, []); 
 
   useEffect(() => {
     if (selectedPatient) {
       loadPatientAppointments(selectedPatient.patient_ID);
+      setSelectedAppointmentId('');
+      setFormErrors((prev) => ({ ...prev, appointment: undefined }));
     }
   }, [selectedPatient]);
 
@@ -124,7 +141,7 @@ export default function NewEHRPage() {
 
   const loadPatientAppointments = async (patientId: number) => {
     try {
-      // USE BACKEND FILTER - More efficient than client-side filtering
+      
       const patientApts = await appointmentService.getAppointmentsByPatient(patientId) as Appointment[];
       setAppointments(patientApts);
     } catch (error) {
@@ -138,7 +155,6 @@ export default function NewEHRPage() {
     ));
   };
 
-  // Medication handlers
   const addMedication = () => {
     const newMed: Medication = {
       id: Date.now().toString(),
@@ -163,13 +179,12 @@ export default function NewEHRPage() {
     ));
   };
 
-  // Procedure handlers
   const addProcedure = () => {
     const newProc: Procedure = {
       id: Date.now().toString(),
       code: '',
       description: '',
-      toothNumber: '',
+      toothNumber: 0,
       status: 'Planned',
       performedAt: new Date().toISOString().slice(0, 16),
       notes: '',
@@ -181,15 +196,22 @@ export default function NewEHRPage() {
     setProcedures(procedures.filter(p => p.id !== id));
   };
 
-  const updateProcedure = (id: string, field: keyof Procedure, value: string) => {
-    setProcedures(procedures.map(p => 
-      p.id === id ? { ...p, [field]: value } : p
-    ));
+  const updateProcedure = (id: string, field: keyof Procedure, value: any) => {
+    setProcedures(procedures.map(p => {
+      if (p.id !== id) return p;
+      const updated = { ...p } as any;
+      if (field === 'toothNumber') {
+        const num = typeof value === 'number' ? value : parseInt(String(value) || '0');
+        updated.toothNumber = Number.isNaN(num) ? 0 : num;
+      } else {
+        updated[field] = value;
+      }
+      return updated as Procedure;
+    }));
   };
 
-  // Tooth record handlers
   const addToothRecord = () => {
-    const newTooth: ToothRecord = {
+    const newTooth: LocalToothRecord = {
       id: Date.now().toString(),
       toothNumber: 11,
       condition: '',
@@ -199,20 +221,36 @@ export default function NewEHRPage() {
       surfacesAffected: '',
       notes: '',
     };
-    setToothRecords([...toothRecords, newTooth]);
+    setToothRecords(prev => [...prev, newTooth]);
+  };
+
+  const ensureToothRecord = (toothNumber: number) => {
+    const exists = toothRecords.find(t => t.toothNumber === toothNumber);
+    if (!exists) {
+      const newTooth: LocalToothRecord = {
+        id: Date.now().toString(),
+        toothNumber,
+        condition: '',
+        treatmentPlanned: '',
+        treatmentCompleted: false,
+        completedDate: '',
+        surfacesAffected: '',
+        notes: '',
+      };
+      setToothRecords(prev => [...prev, newTooth]);
+    }
   };
 
   const removeToothRecord = (id: string) => {
-    setToothRecords(toothRecords.filter(t => t.id !== id));
+    setToothRecords(prev => prev.filter(t => t.id !== id));
   };
 
-  const updateToothRecord = (id: string, field: keyof ToothRecord, value: any) => {
-    setToothRecords(toothRecords.map(t => 
+  const updateToothRecord = (id: string, field: keyof LocalToothRecord, value: any) => {
+    setToothRecords(prev => prev.map(t => 
       t.id === id ? { ...t, [field]: value } : t
     ));
   };
 
-  // Authorization check - Only doctors can create EHRs
   if (!isDoctor()) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -227,7 +265,6 @@ export default function NewEHRPage() {
     );
   }
 
-  // X-Ray handlers
   const addXRay = () => {
     const newXRay: XRay = {
       id: Date.now().toString(),
@@ -251,20 +288,126 @@ export default function NewEHRPage() {
     ));
   };
 
-  const handleSave = async (isDraft: boolean = false) => {
-    if (!selectedPatient || !selectedAppointmentId) {
-      alert('Please select a patient and appointment');
-      return;
+  const handleApplyGeneratedNotes = (notes: string) => {
+    setClinicalNotes(notes);
+    setShowGenerateNotesModal(false);
+  };
+
+  const handleApplyParsedEHR = (fields: ParseEHRExtractedFields) => {
+    
+    if (fields.allergies) setAllergies(fields.allergies);
+    if (fields.medicalAlerts) setMedicalAlerts(fields.medicalAlerts);
+    if (fields.history) setMedicalHistory(fields.history);
+    if (fields.diagnosis) setPrimaryDiagnosis(fields.diagnosis);
+    if (fields.xRayFindings) setXRayFindings(fields.xRayFindings);
+    if (fields.periodontalStatus) setPeriodontalStatus(fields.periodontalStatus);
+    if (fields.treatments) setTreatmentsProvided(fields.treatments);
+    if (fields.clinicalNotes) setClinicalNotes(fields.clinicalNotes);
+    if (fields.recommendations) setRecommendations(fields.recommendations);
+
+    if (fields.medications && fields.medications.length > 0) {
+      const newMedications: Medication[] = fields.medications.map(med => ({
+        id: Date.now().toString() + Math.random(),
+        name: med.name || '',
+        dosage: med.dosage || '',
+        frequency: med.frequency || '',
+        route: 'Oral',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: med.duration || '',
+        notes: '',
+      }));
+      setMedications(prev => [...prev, ...newMedications]);
     }
 
-    if (!primaryDiagnosis && !isDraft) {
-      alert('Primary diagnosis is required');
+    if (fields.procedures && fields.procedures.length > 0) {
+      const newProcedures: Procedure[] = fields.procedures.map(proc => ({
+        id: Date.now().toString() + Math.random(),
+        code: '',
+        description: proc.name || '',
+        toothNumber: 0,
+        status: 'Completed',
+        performedAt: proc.date || new Date().toISOString(),
+        notes: proc.description || '',
+      }));
+      setProcedures(prev => [...prev, ...newProcedures]);
+    }
+
+    if (fields.affectedTeeth && fields.affectedTeeth.length > 0) {
+      const teethWithIssues = fields.affectedTeeth.filter(tooth => tooth.condition || tooth.treatment);
+      if (teethWithIssues.length > 0) {
+        const newToothRecords: LocalToothRecord[] = teethWithIssues.map(tooth => ({
+          id: Date.now().toString() + Math.random(),
+          toothNumber: tooth.toothNumber,
+          condition: tooth.condition || 'Caries',
+          treatmentPlanned: tooth.treatment || '',
+          treatmentCompleted: false,
+          completedDate: '',
+          surfacesAffected: '',
+          notes: '',
+        }));
+        setToothRecords(prev => [...prev, ...newToothRecords]);
+      }
+    }
+
+    if (fields.xRays && fields.xRays.length > 0) {
+      const newXRays: XRay[] = fields.xRays.map(xray => ({
+        id: Date.now().toString() + Math.random(),
+        type: xray.type || '',
+        findings: xray.findings || '',
+        takenAt: xray.date || new Date().toISOString(),
+        takenBy: '',
+        imageUrl: '',
+        notes: '',
+      }));
+      setXRays(prev => [...prev, ...newXRays]);
+    }
+
+    setShowParseEHRModal(false);
+    setToast({ type: 'success', message: 'EHR parsed and applied successfully!' });
+  };
+
+  const handleSelectTreatments = (selectedTreatments: string[]) => {
+    const currentTreatments = treatmentsProvided.trim();
+    const newTreatments = currentTreatments 
+      ? `${currentTreatments}\n${selectedTreatments.join('\n')}`
+      : selectedTreatments.join('\n');
+    setTreatmentsProvided(newTreatments);
+  };
+
+  const getPatientContext = (toothNumber?: number) => {
+    if (!selectedPatient) return '';
+    const age = selectedPatient.dob 
+      ? Math.floor((new Date().getTime() - new Date(selectedPatient.dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+      : 'Unknown';
+    let context = `Patient: ${selectedPatient.first} ${selectedPatient.last}, Age: ${age}, Gender: ${selectedPatient.gender}${allergies ? `, Allergies: ${allergies}` : ''}${medicalHistory ? `, History: ${medicalHistory}` : ''}`;
+    if (toothNumber) {
+      context += `, Tooth #${toothNumber}`;
+    }
+    if (primaryDiagnosis) {
+      context += `, Diagnosis: ${primaryDiagnosis}`;
+    }
+    return context;
+  };
+
+  const handleSave = async (isDraft: boolean = false) => {
+    const errors: { patient?: string; appointment?: string; diagnosis?: string } = {};
+    if (!selectedPatient) errors.patient = 'Select a patient to proceed';
+    if (!selectedAppointmentId) errors.appointment = 'Select an appointment to link the record';
+    if (!primaryDiagnosis && !isDraft) errors.diagnosis = 'Primary diagnosis is required to complete the record';
+
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setToast({ type: 'error', message: 'Please resolve the highlighted fields before saving.' });
       return;
     }
 
     setIsSubmitting(true);
 
     try {
+      if (!selectedPatient) {
+        setToast({ type: 'error', message: 'Patient must be selected' });
+        return;
+      }
       const ehrData = {
         patient_ID: selectedPatient.patient_ID,
         appointmentId: parseInt(selectedAppointmentId),
@@ -279,19 +422,12 @@ export default function NewEHRPage() {
         recommendations: recommendations || '',
         medications: medications.length > 0 ? medications.map(m => ({
           name: m.name,
-          Name: m.name,
-          dosage: m.dosage,
-          Dosage: m.dosage,
-          frequency: m.frequency,
-          Frequency: m.frequency,
-          route: m.route,
-          Route: m.route,
-          startDate: m.startDate,
-          StartDate: m.startDate,
-          endDate: m.endDate,
-          EndDate: m.endDate,
-          notes: m.notes,
-          Notes: m.notes,
+          dosage: m.dosage || undefined,
+          frequency: m.frequency || undefined,
+          route: m.route || undefined,
+          startDate: m.startDate || undefined,
+          endDate: m.endDate || undefined,
+          notes: m.notes || undefined,
         })) : [],
         procedures: procedures.length > 0 ? procedures.map(p => ({
           code: p.code,
@@ -302,8 +438,8 @@ export default function NewEHRPage() {
           Status: p.status,
           toothNumber: p.toothNumber,
           ToothNumber: p.toothNumber,
-          performedAt: p.performedAt,
-          PerformedAt: p.performedAt,
+          performedAt: p.performedAt || '',
+          PerformedAt: p.performedAt || '',
           notes: p.notes,
           Notes: p.notes,
         })) : [],
@@ -312,8 +448,8 @@ export default function NewEHRPage() {
           Type: x.type,
           findings: x.findings,
           Findings: x.findings,
-          takenAt: x.takenAt,
-          TakenAt: x.takenAt,
+          takenAt: x.takenAt || new Date().toISOString().slice(0, 16),
+          TakenAt: x.takenAt || new Date().toISOString().slice(0, 16),
           takenBy: x.takenBy || '',
           TakenBy: x.takenBy || '',
           notes: x.notes,
@@ -322,23 +458,27 @@ export default function NewEHRPage() {
         teeth: toothRecords.length > 0 ? toothRecords.map(t => ({
           toothNumber: t.toothNumber,
           ToothNumber: t.toothNumber,
-          condition: t.condition,
-          Condition: t.condition,
-          treatmentPlanned: t.treatmentPlanned,
-          TreatmentPlanned: t.treatmentPlanned,
-          notes: t.notes,
-          Notes: t.notes,
+          condition: t.condition || undefined,
+          Condition: t.condition || undefined,
+          treatmentPlanned: t.treatmentPlanned || undefined,
+          TreatmentPlanned: t.treatmentPlanned || undefined,
+          treatmentCompleted: t.treatmentCompleted ? 'true' : undefined,
+          TreatmentCompleted: t.treatmentCompleted ? 'true' : undefined,
+          surfaces: t.surfacesAffected || undefined,
+          Surfaces: t.surfacesAffected || undefined,
+          notes: t.notes || undefined,
+          Notes: t.notes || undefined,
         })) : [],
       };
 
       console.log('Creating EHR with data:', ehrData);
       await ehrService.createEHR(ehrData);
-      alert(isDraft ? 'EHR draft saved successfully' : 'EHR saved successfully');
+      setToast({ type: 'success', message: isDraft ? 'Draft saved successfully.' : 'EHR saved successfully.' });
       router.push('/dashboard/ehr');
     } catch (error: any) {
       console.error('Error saving EHR:', error);
       const errorMessage = error?.error || error?.message || 'Failed to save EHR';
-      alert(errorMessage);
+      setToast({ type: 'error', message: errorMessage });
     } finally {
       setIsSubmitting(false);
     }
@@ -352,24 +492,42 @@ export default function NewEHRPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
+      {toast && (
+        <ToastNotification
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+          position="top-center"
+        />
+      )}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
           <h1 className="text-3xl font-bold text-gray-900">Create Electronic Health Record</h1>
           <p className="text-gray-600 mt-1">Complete patient health record documentation</p>
         </div>
-        <div className="flex space-x-3">
-          <Button variant="secondary" onClick={() => router.back()}>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full md:w-auto">
+          <Button 
+            className="w-full sm:w-auto" 
+            variant="secondary" 
+            onClick={() => setShowParseEHRModal(true)}
+          >
+            <Brain className="w-4 h-4 mr-2" />
+            Paste & Extract
+          </Button>
+          <Button className="w-full sm:w-auto" variant="secondary" onClick={() => router.back()}>
             Cancel
           </Button>
-          <Button 
-            variant="secondary" 
+          <Button
+            className="w-full sm:w-auto"
+            variant="secondary"
             onClick={() => handleSave(true)}
             disabled={isSubmitting}
           >
             <FileText className="w-4 h-4 mr-2" />
             Save Draft
           </Button>
-          <Button 
+          <Button
+            className="w-full sm:w-auto"
             onClick={() => handleSave(false)}
             disabled={isSubmitting}
           >
@@ -381,26 +539,29 @@ export default function NewEHRPage() {
 
       <Card>
         <div className="space-y-6">
-          {/* Patient Selection */}
+          {}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              🔍 Select Patient <span className="text-red-500">*</span>
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Select Patient <span className="text-red-500">*</span></label>
             <PatientAutocomplete
               value={selectedPatient}
-              onChange={setSelectedPatient}
+              onChange={(patient) => {
+                setSelectedPatient(patient);
+                setFormErrors((prev) => ({ ...prev, patient: undefined }));
+              }}
               showLastVisit
             />
+            {formErrors.patient && <p className="mt-1 text-sm text-red-600">{formErrors.patient}</p>}
           </div>
 
-          {/* Appointment Selection */}
+          {}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              🔍 Select Appointment <span className="text-red-500">*</span>
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Select Appointment <span className="text-red-500">*</span></label>
             <select
               value={selectedAppointmentId}
-              onChange={(e) => setSelectedAppointmentId(e.target.value)}
+              onChange={(e) => {
+                setSelectedAppointmentId(e.target.value);
+                setFormErrors((prev) => ({ ...prev, appointment: undefined }));
+              }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={!selectedPatient}
             >
@@ -411,6 +572,7 @@ export default function NewEHRPage() {
                 </option>
               ))}
             </select>
+            {formErrors.appointment && <p className="mt-1 text-sm text-red-600">{formErrors.appointment}</p>}
             {selectedApt && (
               <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
                 Selected: {selectedApt.date} at {selectedApt.time} - {selectedApt.type}
@@ -420,7 +582,7 @@ export default function NewEHRPage() {
 
           <div className="border-t border-gray-200 my-6"></div>
 
-          {/* SECTION 1: General Medical Information */}
+          {}
           <div>
             <button
               onClick={() => toggleSection(1)}
@@ -432,46 +594,49 @@ export default function NewEHRPage() {
             {sections[0].isOpen && (
               <div className="mt-4 space-y-4 border border-gray-200 rounded-lg p-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Allergies</label>
-                  <textarea
+                  <AIAutoCompleteTextarea
                     value={allergies}
-                    onChange={(e) => setAllergies(e.target.value)}
-                    rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(value) => setAllergies(value)}
                     placeholder="e.g., Penicillin, Latex"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Medical Alerts / Warnings</label>
-                  <textarea
-                    value={medicalAlerts}
-                    onChange={(e) => setMedicalAlerts(e.target.value)}
+                    label="Allergies"
+                    minChars={2}
+                    debounceMs={300}
+                    context="Medical allergies and sensitivities"
                     rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., High blood pressure - monitor carefully"
+                    showAIBadge={true}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Medical History</label>
-                  <AutoExpandTextarea
-                    label=""
-                    name="medicalHistory"
+                  <AIAutoCompleteTextarea
+                    value={medicalAlerts}
+                    onChange={(value) => setMedicalAlerts(value)}
+                    placeholder="e.g., High blood pressure - monitor carefully"
+                    label="Medical Alerts / Warnings"
+                    minChars={10}
+                    debounceMs={300}
+                    context="Medical alerts and warnings for clinical staff"
+                    rows={2}
+                    showAIBadge={true}
+                  />
+                </div>
+                <div>
+                  <AIAutoCompleteTextarea
                     value={medicalHistory}
-                    onChange={(e) => setMedicalHistory(e.target.value)}
+                    onChange={(value) => setMedicalHistory(value)}
                     placeholder="Previous surgeries, chronic conditions, etc."
+                    label="Medical History"
+                    minChars={15}
+                    debounceMs={300}
+                    context={selectedPatient ? `Patient: ${selectedPatient.first} ${selectedPatient.last}, Age: ${new Date().getFullYear() - new Date(selectedPatient.dob).getFullYear()}` : undefined}
                     rows={3}
-                    templates={[
-                      { label: 'No Medical History', value: 'No significant medical history reported.' },
-                      { label: 'Diabetic Patient', value: 'Patient has Type 2 Diabetes. Blood sugar levels monitored regularly.' },
-                      { label: 'Hypertension', value: 'Patient has controlled hypertension. Currently on medication.' }
-                    ]}
+                    showAIBadge={true}
                   />
                 </div>
               </div>
             )}
           </div>
 
-          {/* SECTION 2: Diagnosis & Findings */}
+          {}
           <div>
             <button
               onClick={() => toggleSection(2)}
@@ -486,56 +651,78 @@ export default function NewEHRPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Primary Diagnosis <span className="text-red-500">*</span>
                   </label>
-                  <AutoExpandTextarea
-                    label=""
-                    name="primaryDiagnosis"
+                  <AITerminologyInput
                     value={primaryDiagnosis}
-                    onChange={(e) => setPrimaryDiagnosis(e.target.value)}
+                    onChange={(value) => {
+                      setPrimaryDiagnosis(value);
+                      setFormErrors((prev) => ({ ...prev, diagnosis: undefined }));
+                    }}
                     placeholder="e.g., Dental Caries - Class II Cavity"
-                    required
-                    rows={2}
-                    templates={[
-                      { label: 'Dental Caries', value: 'Dental Caries - Class II Cavity detected' },
-                      { label: 'Gingivitis', value: 'Gingivitis - Mild inflammation of gingival tissue' },
-                      { label: 'Periodontitis', value: 'Chronic Periodontitis - Moderate bone loss observed' }
-                    ]}
+                    label=""
+                    minChars={3}
+                    debounceMs={300}
                   />
+                  {formErrors.diagnosis && <p className="mt-1 text-sm text-red-600">{formErrors.diagnosis}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">X-Ray Findings</label>
-                  <textarea
+                  <AITerminologyInput
                     value={xRayFindings}
-                    onChange={(e) => setXRayFindings(e.target.value)}
-                    rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., Cavity detected in tooth #14, moderate depth"
+                    onChange={setXRayFindings}
+                    placeholder="e.g., Periapical radiolucency, Cavity detected in tooth #14"
+                    label=""
+                    minChars={3}
+                    debounceMs={300}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Periodontal Status</label>
-                  <textarea
+                  <AITerminologyInput
                     value={periodontalStatus}
-                    onChange={(e) => setPeriodontalStatus(e.target.value)}
-                    rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={setPeriodontalStatus}
                     placeholder="e.g., Healthy gums, no bleeding, good oral hygiene"
+                    label=""
+                    minChars={3}
+                    debounceMs={300}
                   />
                 </div>
+                
+                {}
+                {primaryDiagnosis && (
+                  <AITreatmentSuggestions
+                    diagnosis={primaryDiagnosis}
+                    patientHistory={medicalHistory}
+                    onSelectTreatments={handleSelectTreatments}
+                  />
+                )}
               </div>
             )}
           </div>
 
-          {/* SECTION 3: Medications */}
+          {}
           <div>
             <button
               onClick={() => toggleSection(3)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+              className="w-full flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <span className="font-semibold text-gray-900">{sections[2].isOpen ? '▼' : '▶'} {sections[2].title}</span>
-              <Button size="sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); addMedication(); }}>
-                <Plus className="w-4 h-4 mr-1" />
-                Add Med
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    router.push('/dashboard/clinical-decision-support');
+                  }}
+                >
+                  <Brain className="w-4 h-4 mr-1" />
+                  Decision Support
+                </Button>
+                <Button size="sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); addMedication(); }}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Med
+                </Button>
+              </div>
             </button>
             {sections[2].isOpen && (
               <div className="mt-4 space-y-4">
@@ -557,7 +744,7 @@ export default function NewEHRPage() {
                           Remove
                         </Button>
                       </div>
-                      <div className="grid grid-cols-4 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <Input
                           label="Name"
                           value={med.name}
@@ -590,7 +777,7 @@ export default function NewEHRPage() {
                           </select>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         <Input
                           label="Start Date"
                           type="date"
@@ -617,11 +804,11 @@ export default function NewEHRPage() {
             )}
           </div>
 
-          {/* SECTION 4: Procedures */}
+          {}
           <div>
             <button
               onClick={() => toggleSection(4)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+              className="w-full flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <span className="font-semibold text-gray-900">{sections[3].isOpen ? '▼' : '▶'} {sections[3].title}</span>
               <Button size="sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); addProcedure(); }}>
@@ -649,7 +836,7 @@ export default function NewEHRPage() {
                           Remove
                         </Button>
                       </div>
-                      <div className="grid grid-cols-4 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <Input
                           label="Code"
                           value={proc.code}
@@ -664,8 +851,8 @@ export default function NewEHRPage() {
                         />
                         <Input
                           label="Tooth #"
-                          value={proc.toothNumber}
-                          onChange={(e) => updateProcedure(proc.id, 'toothNumber', e.target.value)}
+                          value={proc.toothNumber?.toString() || ''}
+                          onChange={(e) => updateProcedure(proc.id, 'toothNumber', parseInt(e.target.value || '0'))}
                           placeholder="e.g., 14"
                         />
                         <div>
@@ -682,7 +869,7 @@ export default function NewEHRPage() {
                           </select>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <Input
                           label="Performed At"
                           type="datetime-local"
@@ -703,11 +890,11 @@ export default function NewEHRPage() {
             )}
           </div>
 
-          {/* SECTION 5: Tooth Chart */}
+          {}
           <div>
             <button
               onClick={() => toggleSection(5)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+              className="w-full flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <span className="font-semibold text-gray-900">{sections[4].isOpen ? '▼' : '▶'} {sections[4].title}</span>
               <Button size="sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); addToothRecord(); }}>
@@ -717,279 +904,30 @@ export default function NewEHRPage() {
             </button>
             {sections[4].isOpen && (
               <div className="mt-4 space-y-4">
-                {/* Interactive Tooth Chart */}
-                <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
-                  <h4 className="font-semibold text-center mb-4">VISUAL TOOTH DIAGRAM (Interactive)</h4>
-                  <div className="flex justify-center items-center space-x-8">
-                    <div className="text-center">
-                      <p className="text-sm font-medium mb-2">Upper Right</p>
-                      <div className="grid grid-cols-4 gap-1">
-                        {[18, 17, 16, 15].map(num => (
-                          <button
-                            key={num}
-                            onClick={() => {
-                              const exists = toothRecords.find(t => t.toothNumber === num);
-                              if (!exists) {
-                                const newTooth: ToothRecord = {
-                                  id: Date.now().toString(),
-                                  toothNumber: num,
-                                  condition: '',
-                                  treatmentPlanned: '',
-                                  treatmentCompleted: false,
-                                  completedDate: '',
-                                  surfacesAffected: '',
-                                  notes: '',
-                                };
-                                setToothRecords([...toothRecords, newTooth]);
-                              }
-                            }}
-                            className={`w-10 h-10 border-2 rounded-lg font-semibold text-xs ${
-                              toothRecords.find(t => t.toothNumber === num)
-                                ? 'bg-yellow-100 border-yellow-500 text-yellow-900'
-                                : 'bg-green-100 border-green-500 text-green-900'
-                            } hover:scale-110 transition-transform`}
-                          >
-                            {num}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-4 gap-1 mt-1">
-                        {[14, 13, 12, 11].map(num => (
-                          <button
-                            key={num}
-                            onClick={() => {
-                              const exists = toothRecords.find(t => t.toothNumber === num);
-                              if (!exists) {
-                                const newTooth: ToothRecord = {
-                                  id: Date.now().toString(),
-                                  toothNumber: num,
-                                  condition: '',
-                                  treatmentPlanned: '',
-                                  treatmentCompleted: false,
-                                  completedDate: '',
-                                  surfacesAffected: '',
-                                  notes: '',
-                                };
-                                setToothRecords([...toothRecords, newTooth]);
-                              }
-                            }}
-                            className={`w-10 h-10 border-2 rounded-lg font-semibold text-xs ${
-                              toothRecords.find(t => t.toothNumber === num)
-                                ? 'bg-yellow-100 border-yellow-500 text-yellow-900'
-                                : 'bg-green-100 border-green-500 text-green-900'
-                            } hover:scale-110 transition-transform`}
-                          >
-                            {num}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-medium mb-2">Upper Left</p>
-                      <div className="grid grid-cols-4 gap-1">
-                        {[25, 26, 27, 28].map(num => (
-                          <button
-                            key={num}
-                            onClick={() => {
-                              const exists = toothRecords.find(t => t.toothNumber === num);
-                              if (!exists) {
-                                const newTooth: ToothRecord = {
-                                  id: Date.now().toString(),
-                                  toothNumber: num,
-                                  condition: '',
-                                  treatmentPlanned: '',
-                                  treatmentCompleted: false,
-                                  completedDate: '',
-                                  surfacesAffected: '',
-                                  notes: '',
-                                };
-                                setToothRecords([...toothRecords, newTooth]);
-                              }
-                            }}
-                            className={`w-10 h-10 border-2 rounded-lg font-semibold text-xs ${
-                              toothRecords.find(t => t.toothNumber === num)
-                                ? 'bg-yellow-100 border-yellow-500 text-yellow-900'
-                                : 'bg-green-100 border-green-500 text-green-900'
-                            } hover:scale-110 transition-transform`}
-                          >
-                            {num}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-4 gap-1 mt-1">
-                        {[21, 22, 23, 24].map(num => (
-                          <button
-                            key={num}
-                            onClick={() => {
-                              const exists = toothRecords.find(t => t.toothNumber === num);
-                              if (!exists) {
-                                const newTooth: ToothRecord = {
-                                  id: Date.now().toString(),
-                                  toothNumber: num,
-                                  condition: '',
-                                  treatmentPlanned: '',
-                                  treatmentCompleted: false,
-                                  completedDate: '',
-                                  surfacesAffected: '',
-                                  notes: '',
-                                };
-                                setToothRecords([...toothRecords, newTooth]);
-                              }
-                            }}
-                            className={`w-10 h-10 border-2 rounded-lg font-semibold text-xs ${
-                              toothRecords.find(t => t.toothNumber === num)
-                                ? 'bg-yellow-100 border-yellow-500 text-yellow-900'
-                                : 'bg-green-100 border-green-500 text-green-900'
-                            } hover:scale-110 transition-transform`}
-                          >
-                            {num}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-center items-center space-x-8 mt-4">
-                    <div className="text-center">
-                      <div className="grid grid-cols-4 gap-1">
-                        {[48, 47, 46, 45].map(num => (
-                          <button
-                            key={num}
-                            onClick={() => {
-                              const exists = toothRecords.find(t => t.toothNumber === num);
-                              if (!exists) {
-                                const newTooth: ToothRecord = {
-                                  id: Date.now().toString(),
-                                  toothNumber: num,
-                                  condition: '',
-                                  treatmentPlanned: '',
-                                  treatmentCompleted: false,
-                                  completedDate: '',
-                                  surfacesAffected: '',
-                                  notes: '',
-                                };
-                                setToothRecords([...toothRecords, newTooth]);
-                              }
-                            }}
-                            className={`w-10 h-10 border-2 rounded-lg font-semibold text-xs ${
-                              toothRecords.find(t => t.toothNumber === num)
-                                ? 'bg-yellow-100 border-yellow-500 text-yellow-900'
-                                : 'bg-green-100 border-green-500 text-green-900'
-                            } hover:scale-110 transition-transform`}
-                          >
-                            {num}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-4 gap-1 mt-1">
-                        {[44, 43, 42, 41].map(num => (
-                          <button
-                            key={num}
-                            onClick={() => {
-                              const exists = toothRecords.find(t => t.toothNumber === num);
-                              if (!exists) {
-                                const newTooth: ToothRecord = {
-                                  id: Date.now().toString(),
-                                  toothNumber: num,
-                                  condition: '',
-                                  treatmentPlanned: '',
-                                  treatmentCompleted: false,
-                                  completedDate: '',
-                                  surfacesAffected: '',
-                                  notes: '',
-                                };
-                                setToothRecords([...toothRecords, newTooth]);
-                              }
-                            }}
-                            className={`w-10 h-10 border-2 rounded-lg font-semibold text-xs ${
-                              toothRecords.find(t => t.toothNumber === num)
-                                ? 'bg-yellow-100 border-yellow-500 text-yellow-900'
-                                : 'bg-green-100 border-green-500 text-green-900'
-                            } hover:scale-110 transition-transform`}
-                          >
-                            {num}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="text-sm font-medium mt-2">Lower Right</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="grid grid-cols-4 gap-1">
-                        {[35, 36, 37, 38].map(num => (
-                          <button
-                            key={num}
-                            onClick={() => {
-                              const exists = toothRecords.find(t => t.toothNumber === num);
-                              if (!exists) {
-                                const newTooth: ToothRecord = {
-                                  id: Date.now().toString(),
-                                  toothNumber: num,
-                                  condition: '',
-                                  treatmentPlanned: '',
-                                  treatmentCompleted: false,
-                                  completedDate: '',
-                                  surfacesAffected: '',
-                                  notes: '',
-                                };
-                                setToothRecords([...toothRecords, newTooth]);
-                              }
-                            }}
-                            className={`w-10 h-10 border-2 rounded-lg font-semibold text-xs ${
-                              toothRecords.find(t => t.toothNumber === num)
-                                ? 'bg-yellow-100 border-yellow-500 text-yellow-900'
-                                : 'bg-green-100 border-green-500 text-green-900'
-                            } hover:scale-110 transition-transform`}
-                          >
-                            {num}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-4 gap-1 mt-1">
-                        {[31, 32, 33, 34].map(num => (
-                          <button
-                            key={num}
-                            onClick={() => {
-                              const exists = toothRecords.find(t => t.toothNumber === num);
-                              if (!exists) {
-                                const newTooth: ToothRecord = {
-                                  id: Date.now().toString(),
-                                  toothNumber: num,
-                                  condition: '',
-                                  treatmentPlanned: '',
-                                  treatmentCompleted: false,
-                                  completedDate: '',
-                                  surfacesAffected: '',
-                                  notes: '',
-                                };
-                                setToothRecords([...toothRecords, newTooth]);
-                              }
-                            }}
-                            className={`w-10 h-10 border-2 rounded-lg font-semibold text-xs ${
-                              toothRecords.find(t => t.toothNumber === num)
-                                ? 'bg-yellow-100 border-yellow-500 text-yellow-900'
-                                : 'bg-green-100 border-green-500 text-green-900'
-                            } hover:scale-110 transition-transform`}
-                          >
-                            {num}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="text-sm font-medium mt-2">Lower Left</p>
-                    </div>
-                  </div>
-                  <div className="bg-gradient-to-r from-green-50 to-gray-50 border border-gray-200 rounded-lg p-4 mt-4">
-                    <p className="font-semibold text-gray-700 mb-3">🎨 Color Legend:</p>
-                    <div className="grid grid-cols-2 gap-3 text-sm text-gray-700">
-                      <div>● Healthy - Green</div>
-                      <div>● Treated (Filling, Crown, Root Canal) - Yellow</div>
-                      <div>● Problem (Caries, Extraction) - Red</div>
-                      <div>● Missing - Gray</div>
-                      <div>● Others (Custom Condition) - Purple</div>
-                    </div>
-                  </div>
-                  <p className="text-center text-sm text-gray-600 mt-3">Click tooth to add/edit details</p>
+                {}
+                <div>
+                  <ToothChart
+                    selectedTeeth={toothRecords.map(t => ({
+                      toothNumber: t.toothNumber,
+                      ToothNumber: t.toothNumber,
+                      condition: t.condition || undefined,
+                      Condition: t.condition || undefined,
+                      treatmentPlanned: t.treatmentPlanned || undefined,
+                      TreatmentPlanned: t.treatmentPlanned || undefined,
+                      treatmentCompleted: t.treatmentCompleted ? 'true' : 'false',
+                      TreatmentCompleted: t.treatmentCompleted ? 'true' : 'false',
+                      surfaces: t.surfacesAffected || undefined,
+                      Surfaces: t.surfacesAffected || undefined,
+                      notes: t.notes || undefined,
+                      Notes: t.notes || undefined,
+                    }))}
+                    onToothClick={(num: number) => ensureToothRecord(num)}
+                    notation="universal"
+                    readonly={false}
+                  />
                 </div>
 
-                {/* Selected Tooth Records */}
+                {}
                 <div className="space-y-3">
                   <h4 className="font-semibold">Selected Tooth Records:</h4>
                   {toothRecords.length === 0 ? (
@@ -1004,7 +942,7 @@ export default function NewEHRPage() {
                             Remove
                           </Button>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
                             <select
@@ -1012,34 +950,45 @@ export default function NewEHRPage() {
                               onChange={(e) => {
                                 if (e.target.value === 'others') {
                                   const customVal = prompt('Enter custom tooth condition:');
-                                  if (customVal) {
-                                    updateToothRecord(tooth.id, 'condition', customVal);
+                                  if (customVal && customVal.trim()) {
+                                    updateToothRecord(tooth.id, 'condition', customVal.trim() as any);
                                   }
                                 } else {
-                                  updateToothRecord(tooth.id, 'condition', e.target.value);
+                                  updateToothRecord(tooth.id, 'condition', e.target.value as any);
                                 }
                               }}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white cursor-pointer"
                             >
                               <option value="">Select condition...</option>
-                              <option value="Healthy">● Healthy</option>
-                              <option value="Caries">● Caries</option>
-                              <option value="Filling">● Filling</option>
-                              <option value="Root Canal">● Root Canal</option>
-                              <option value="Extraction">● Extraction</option>
-                              <option value="Crown">● Crown</option>
-                              <option value="Missing">● Missing</option>
-                              <option value="others">● Others (Custom)</option>
+                              <option value={TOOTH_CONDITIONS.HEALTHY}>{TOOTH_CONDITIONS.HEALTHY}</option>
+                              <option value={TOOTH_CONDITIONS.CARIES}>{TOOTH_CONDITIONS.CARIES}</option>
+                              <option value={TOOTH_CONDITIONS.FILLING}>{TOOTH_CONDITIONS.FILLING}</option>
+                              <option value={TOOTH_CONDITIONS.ROOT_CANAL}>{TOOTH_CONDITIONS.ROOT_CANAL}</option>
+                              <option value={TOOTH_CONDITIONS.CROWN}>{TOOTH_CONDITIONS.CROWN}</option>
+                              <option value={TOOTH_CONDITIONS.EXTRACTION}>{TOOTH_CONDITIONS.EXTRACTION}</option>
+                              <option value={TOOTH_CONDITIONS.MISSING}>{TOOTH_CONDITIONS.MISSING}</option>
+                              <option value={TOOTH_CONDITIONS.DECAY}>{TOOTH_CONDITIONS.DECAY}</option>
+                              {tooth.condition && !Object.values(TOOTH_CONDITIONS).includes(tooth.condition as typeof TOOTH_CONDITIONS[keyof typeof TOOTH_CONDITIONS]) && (
+                                <option value={tooth.condition}>{tooth.condition} (Custom)</option>
+                              )}
+                              <option value="others">+ Add Custom Condition</option>
                             </select>
                           </div>
-                          <Input
-                            label="Treatment Planned"
-                            value={tooth.treatmentPlanned}
-                            onChange={(e) => updateToothRecord(tooth.id, 'treatmentPlanned', e.target.value)}
-                            placeholder="e.g., Amalgam filling"
-                          />
+                          <div>
+                            <AIAutoCompleteTextarea
+                              value={tooth.treatmentPlanned}
+                              onChange={(value) => updateToothRecord(tooth.id, 'treatmentPlanned', value)}
+                              placeholder="e.g., Amalgam filling"
+                              label="Treatment Planned"
+                              minChars={5}
+                              debounceMs={300}
+                              context={getPatientContext(tooth.toothNumber)}
+                              rows={2}
+                              showAIBadge={true}
+                            />
+                          </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           <div>
                             <label className="flex items-center space-x-2">
                               <input
@@ -1066,12 +1015,19 @@ export default function NewEHRPage() {
                             placeholder="e.g., MO (Mesial-Occlusal)"
                           />
                         </div>
-                        <Input
-                          label="Notes"
-                          value={tooth.notes}
-                          onChange={(e) => updateToothRecord(tooth.id, 'notes', e.target.value)}
-                          placeholder="Additional tooth notes"
-                        />
+                        <div>
+                          <AIAutoCompleteTextarea
+                            value={tooth.notes}
+                            onChange={(value) => updateToothRecord(tooth.id, 'notes', value)}
+                            placeholder="Additional tooth notes"
+                            label="Notes"
+                            minChars={10}
+                            debounceMs={300}
+                            context={getPatientContext(tooth.toothNumber)}
+                            rows={2}
+                            showAIBadge={true}
+                          />
+                        </div>
                       </div>
                     ))
                   )}
@@ -1080,11 +1036,11 @@ export default function NewEHRPage() {
             )}
           </div>
 
-          {/* SECTION 6: X-Rays */}
+          {}
           <div>
             <button
               onClick={() => toggleSection(6)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+              className="w-full flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <span className="font-semibold text-gray-900">{sections[5].isOpen ? '▼' : '▶'} {sections[5].title}</span>
               <Button size="sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); addXRay(); }}>
@@ -1112,7 +1068,7 @@ export default function NewEHRPage() {
                           Remove
                         </Button>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
                           <select
@@ -1134,7 +1090,7 @@ export default function NewEHRPage() {
                           placeholder="X-ray findings and observations"
                         />
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         <Input
                           label="Taken At"
                           type="datetime-local"
@@ -1145,14 +1101,36 @@ export default function NewEHRPage() {
                           label="Taken By"
                           value={xray.takenBy}
                           onChange={(e) => updateXRay(xray.id, 'takenBy', e.target.value)}
-                          placeholder="Doctor/Technician name"
+                          placeholder="Dr. Ahmed Hassan"
                         />
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Image</label>
-                          <button className="w-full px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center text-sm">
-                            <Upload className="w-4 h-4 mr-2" />
-                            Upload Image
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="flex-1 w-full px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center text-sm"
+                              onClick={() => fileInputRefs.current[xray.id]?.click()}
+                            >
+                              <Upload className="w-4 h-4 mr-2" />
+                              Upload Image
+                            </button>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              ref={(el) => { fileInputRefs.current[xray.id] = el; }}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                
+                                const url = URL.createObjectURL(file);
+                                setXRays(prev => prev.map(x => x.id === xray.id ? { ...x, imageUrl: url } : x));
+                                setPendingXRayFiles(prev => [...prev, { id: xray.id, file }]);
+                                
+                                e.currentTarget.value = '';
+                              }}
+                            />
+                          </div>
                         </div>
                       </div>
                       <Input
@@ -1168,7 +1146,7 @@ export default function NewEHRPage() {
             )}
           </div>
 
-          {/* SECTION 7: Treatment & Recommendations */}
+          {}
           <div>
             <button
               onClick={() => toggleSection(7)}
@@ -1180,51 +1158,52 @@ export default function NewEHRPage() {
             {sections[6].isOpen && (
               <div className="mt-4 space-y-4 border border-gray-200 rounded-lg p-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Treatments Provided</label>
-                  <AutoExpandTextarea
-                    label=""
-                    name="treatmentsProvided"
+                  <AIAutoCompleteTextarea
                     value={treatmentsProvided}
-                    onChange={(e) => setTreatmentsProvided(e.target.value)}
+                    onChange={(value) => setTreatmentsProvided(value)}
                     placeholder="e.g., Amalgam filling on tooth #14, fluoride treatment"
+                    label="Treatments Provided"
+                    minChars={15}
+                    debounceMs={300}
+                    context={selectedPatient ? `Patient: ${selectedPatient.first} ${selectedPatient.last}, Diagnosis: ${primaryDiagnosis}` : undefined}
                     rows={3}
-                    templates={[
-                      { label: 'Filling', value: 'Amalgam filling applied to cavity. Patient tolerated procedure well.' },
-                      { label: 'Cleaning', value: 'Professional dental cleaning performed. Plaque and calculus removed.' },
-                      { label: 'Extraction', value: 'Tooth extraction completed under local anesthesia. No complications.' }
-                    ]}
+                    showAIBadge={true}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Clinical Notes</label>
-                  <AutoExpandTextarea
-                    label=""
-                    name="clinicalNotes"
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">Clinical Notes</label>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowGenerateNotesModal(true)}
+                    >
+                      Generate with AI
+                    </Button>
+                  </div>
+                  <AIAutoCompleteTextarea
                     value={clinicalNotes}
-                    onChange={(e) => setClinicalNotes(e.target.value)}
+                    onChange={setClinicalNotes}
                     placeholder="e.g., Patient tolerated procedure well, no complications"
-                    rows={3}
-                    templates={[
-                      { label: 'Routine Visit', value: 'Routine examination completed. Patient in good oral health.' },
-                      { label: 'Post-Procedure', value: 'Patient tolerated procedure well. No immediate complications observed.' },
-                      { label: 'Follow-up Required', value: 'Patient requires follow-up. Condition to be monitored closely.' }
-                    ]}
+                    label=""
+                    rows={5}
+                    context={getPatientContext()}
+                    minChars={20}
+                    debounceMs={400}
+                    showAIBadge={false}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Recommendations</label>
-                  <AutoExpandTextarea
-                    label=""
-                    name="recommendations"
+                  <AIAutoCompleteTextarea
                     value={recommendations}
-                    onChange={(e) => setRecommendations(e.target.value)}
+                    onChange={(value) => setRecommendations(value)}
                     placeholder="e.g., Follow-up in 6 months, maintain good oral hygiene"
+                    label="Recommendations"
+                    minChars={15}
+                    debounceMs={300}
+                    context={selectedPatient ? `Patient: ${selectedPatient.first} ${selectedPatient.last}, Diagnosis: ${primaryDiagnosis}, Treatments: ${treatmentsProvided}` : undefined}
                     rows={3}
-                    templates={[
-                      { label: '6-Month Follow-up', value: 'Schedule follow-up appointment in 6 months. Continue current oral hygiene routine.' },
-                      { label: 'Immediate Follow-up', value: 'Follow-up required in 2 weeks to assess healing progress.' },
-                      { label: 'Preventive Care', value: 'Maintain good oral hygiene. Brush twice daily, floss regularly, use fluoride toothpaste.' }
-                    ]}
+                    showAIBadge={true}
                   />
                 </div>
               </div>
@@ -1233,26 +1212,28 @@ export default function NewEHRPage() {
 
           <div className="border-t border-gray-200 my-6"></div>
 
-          {/* Footer Info */}
+          {}
           <div className="text-sm text-gray-600 space-y-1">
             <p>Updated By: {selectedPatient ? 'Dr. Ahmed Hassan' : 'Not set'}</p>
             <p>Last Updated: {new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <Button variant="secondary" onClick={() => router.back()}>
+          {}
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4 border-t border-gray-200">
+            <Button className="w-full sm:w-auto" variant="secondary" onClick={() => router.back()}>
               Cancel
             </Button>
-            <Button 
-              variant="secondary" 
+            <Button
+              className="w-full sm:w-auto"
+              variant="secondary"
               onClick={() => handleSave(true)}
               disabled={isSubmitting}
             >
               <FileText className="w-4 h-4 mr-2" />
               Save Draft
             </Button>
-            <Button 
+            <Button
+              className="w-full sm:w-auto"
               onClick={() => handleSave(false)}
               disabled={isSubmitting}
             >
@@ -1262,6 +1243,21 @@ export default function NewEHRPage() {
           </div>
         </div>
       </Card>
+
+      {}
+      <AIGenerateNotesModal
+        isOpen={showGenerateNotesModal}
+        onClose={() => setShowGenerateNotesModal(false)}
+        onApply={handleApplyGeneratedNotes}
+        patientContext={getPatientContext()}
+      />
+
+      <AIParseEHRModal
+        isOpen={showParseEHRModal}
+        onClose={() => setShowParseEHRModal(false)}
+        onApplyData={handleApplyParsedEHR}
+        patientContext={getPatientContext()}
+      />
     </div>
   );
 }

@@ -12,7 +12,7 @@ import Badge from '@/components/Badge';
 import EHRTimeline from '@/components/EHRTimeline';
 import { ehrService, patientService } from '@/services';
 import { EHR, Patient, ApiError } from '@/types/api.types';
-import { FileText, Activity, Eye, History, Clock, Edit, Plus, Download } from 'lucide-react';
+import { FileText, Activity, Eye, History, Clock, Edit, Plus, Download, Pill, Camera, BarChart2 } from 'lucide-react';
 
 export default function EHRPage() {
   const router = useRouter();
@@ -38,8 +38,7 @@ export default function EHRPage() {
       ]);
       console.log('Fetched EHRs:', ehrsData);
       console.log('EHR IDs:', ehrsData.map(e => ({ id: getEhrId(e), patient: e.patient_ID })));
-      
-      // Filter out any EHRs without a valid ID
+
       const validEhrs = ehrsData.filter(ehr => {
         const id = getEhrId(ehr);
         if (!id) {
@@ -80,8 +79,7 @@ export default function EHRPage() {
 
   const handleExportHistory = () => {
     if (!selectedEHR) return;
-    
-    // Create a simple text export of the change history
+
     const changes = selectedEHR.changeLogs || [];
     const exportText = `Change History - EHR #${getEhrId(selectedEHR)}\n` +
       `Total Changes: ${changes.length}\n` +
@@ -122,7 +120,7 @@ export default function EHRPage() {
   };
 
   return (
-    <div className="max-w-full overflow-hidden">
+    <div className="max-w-full overflow-x-hidden">
       <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Electronic Health Records</h1>
@@ -160,7 +158,6 @@ export default function EHRPage() {
         </Card>
       </div>
 
-      {/* Tabs */}
       <Card className="mb-6">
         <Tabs
           tabs={[
@@ -179,7 +176,6 @@ export default function EHRPage() {
         </div>
       ) : ehrs.length > 0 ? (
         <>
-          {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {ehrs.slice(0, 6).map((ehr, index) => (
@@ -204,14 +200,12 @@ export default function EHRPage() {
                         Last update: {ehr.updatedAt ? Math.floor((new Date().getTime() - new Date(ehr.updatedAt).getTime()) / (1000 * 60 * 60 * 24)) : 0} days ago
                       </p>
                       
-                      {/* Stats Row */}
                       <div className="flex items-center gap-3 text-xs text-gray-600">
-                        <span>💊 {ehr.medications?.length || 0} Medications</span>
-                        <span>🦷 {ehr.procedures?.length || 0} Procedures</span>
-                        <span>📸 {ehr.xRays?.length || 0} X-Rays</span>
+                        <span className="flex items-center gap-1"><Pill className="w-4 h-4 text-gray-400" />{ehr.medications?.length || 0} Medications</span>
+                        <span className="flex items-center gap-1"><Activity className="w-4 h-4 text-gray-400" />{ehr.procedures?.length || 0} Procedures</span>
+                        <span className="flex items-center gap-1"><Camera className="w-4 h-4 text-gray-400" />{ehr.xRays?.length || 0} X-Rays</span>
                       </div>
                       
-                      {/* Action Buttons */}
                       <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
@@ -271,7 +265,6 @@ export default function EHRPage() {
             </div>
           )}
 
-          {/* Details Tab */}
           {activeTab === 'details' && (
             <div className="space-y-3 sm:space-y-4">
               {ehrs.map((ehr, index) => (
@@ -367,7 +360,6 @@ export default function EHRPage() {
                 )}
                   </div>
                   
-                  {/* Action Buttons for Details View */}
                   <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
                     <Button
                       size="sm"
@@ -401,7 +393,6 @@ export default function EHRPage() {
             </div>
           )}
 
-          {/* Timeline Tab */}
           {activeTab === 'timeline' && (
             <Card>
               <EHRTimeline
@@ -417,7 +408,6 @@ export default function EHRPage() {
         </Card>
       )}
 
-      {/* Change History Modal */}
       <Modal
         isOpen={isHistoryModalOpen}
         onClose={handleCloseHistoryModal}
@@ -425,10 +415,9 @@ export default function EHRPage() {
         size="xl"
       >
         {selectedEHR && (() => {
-          // Get all EHR records for this patient
-          const patientEhrs = ehrs.filter(ehr => ehr.patient_ID === selectedEHR.patient_ID);
           
-          // Combine all change logs from this patient's EHRs and sort by date
+          const patientEhrs = ehrs.filter(ehr => ehr.patient_ID === selectedEHR.patient_ID);
+
           const allPatientChanges = patientEhrs
             .flatMap(ehr => 
               (ehr.changeLogs || []).map(log => ({
@@ -441,7 +430,6 @@ export default function EHRPage() {
           
           return (
             <div className="space-y-6">
-              {/* Header Stats */}
               <div className="flex flex-col gap-3 p-4 bg-gradient-to-r from-blue-50 to-primary-50 rounded-lg border border-blue-100">
                 <div className="flex items-start justify-between">
                   <div>
@@ -453,7 +441,7 @@ export default function EHRPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-700">📊 Total Changes</p>
+                    <p className="text-sm font-medium text-gray-700 flex items-center gap-1"><BarChart2 className="w-4 h-4 text-gray-400" /> Total Changes</p>
                     <p className="text-2xl font-bold text-primary-600">{allPatientChanges.length}</p>
                   </div>
                 </div>
@@ -467,12 +455,10 @@ export default function EHRPage() {
                 </div>
               </div>
 
-              {/* Change Log List */}
               <div className="space-y-4 max-h-[500px] overflow-y-auto scrollbar-thin">
                 {allPatientChanges.length > 0 ? (
                   allPatientChanges.map((log, index) => (
                     <div key={index} className="p-4 border border-gray-200 rounded-lg bg-white hover:shadow-md transition-shadow">
-                      {/* Header with Timestamp, User, and EHR ID */}
                       <div className="flex items-start justify-between mb-3 pb-3 border-b border-gray-100">
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-gray-500 flex-shrink-0" />
@@ -490,7 +476,6 @@ export default function EHRPage() {
                         </span>
                       </div>
 
-                    {/* Change Type */}
                     <div className="space-y-2">
                       {log.changeType === 'Added' && (
                         <div className="flex items-start gap-2">
@@ -498,7 +483,7 @@ export default function EHRPage() {
                           <div>
                             <p className="text-sm font-semibold text-green-900">ADDED: {log.fieldName}</p>
                             {log.newValue && (
-                              <p className="text-sm text-gray-700 mt-1">"{log.newValue}"</p>
+                              <p className="text-sm text-gray-700 mt-1">&quot;{log.newValue}&quot;</p>
                             )}
                           </div>
                         </div>
@@ -511,12 +496,12 @@ export default function EHRPage() {
                             <p className="text-sm font-semibold text-blue-900">UPDATED: {log.fieldName}</p>
                             {log.oldValue && (
                               <p className="text-sm text-gray-600 mt-1">
-                                Old: "{log.oldValue}"
+                                Old: &quot;{log.oldValue}&quot;
                               </p>
                             )}
                             {log.newValue && (
                               <p className="text-sm text-gray-700 mt-1">
-                                New: "{log.newValue}"
+                                New: &quot;{log.newValue}&quot;
                               </p>
                             )}
                           </div>
@@ -528,7 +513,7 @@ export default function EHRPage() {
                           <Badge variant="danger">DELETED: {log.fieldName}</Badge>
                           {log.oldValue && (
                             <p className="text-sm text-gray-600 mt-1">
-                              Removed: "{log.oldValue}"
+                              Removed: &quot;{log.oldValue}&quot;
                             </p>
                           )}
                         </div>
@@ -553,7 +538,6 @@ export default function EHRPage() {
                 )}
               </div>
 
-              {/* Footer Actions */}
               <div className="pt-4 border-t border-gray-200 flex flex-col sm:flex-row gap-3 justify-between">
                 <Button
                   variant="outline"

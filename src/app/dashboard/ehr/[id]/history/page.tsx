@@ -50,7 +50,6 @@ export default function EHRHistoryPage() {
 
   return (
     <div>
-      {/* Breadcrumb */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center text-sm text-gray-600">
           <span 
@@ -79,7 +78,6 @@ export default function EHRHistoryPage() {
         </Button>
       </div>
 
-      {/* Page Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
           <History className="w-8 h-8 text-primary-600" />
@@ -90,7 +88,6 @@ export default function EHRHistoryPage() {
         </p>
       </div>
 
-      {/* Alert */}
       {alert && (
         <div className="mb-4">
           <Alert
@@ -101,7 +98,6 @@ export default function EHRHistoryPage() {
         </div>
       )}
 
-      {/* History Timeline */}
       {isLoading ? (
         <Card>
           <div className="flex items-center justify-center py-12">
@@ -126,7 +122,6 @@ export default function EHRHistoryPage() {
         </Card>
       )}
 
-      {/* Action Buttons */}
       <div className="mt-6 flex gap-3">
         <Button
           variant="outline"
