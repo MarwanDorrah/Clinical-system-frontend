@@ -16,7 +16,9 @@ import { supplyService, stockTransactionService } from '@/services';
 import { useAuth } from '@/contexts/AuthContext';
 import { Supply, StockTransaction, ApiError } from '@/types/api.types';
 import { getCurrentDateForAPI, getCurrentTimeForAPI, timeInputToAPI, formatDateForDisplay } from '@/utils/date.utils';
-import { Package, AlertTriangle, TrendingDown, History, Plus, ChevronRight } from 'lucide-react';
+import { Package, AlertTriangle, TrendingDown, History, Plus, ChevronRight, Eye } from 'lucide-react';
+import SupplyDetailsModal from '@/components/SupplyDetailsModal';
+import { AIAutoCompleteTextarea } from '@/components/AIAutoCompleteTextarea';
 
 export default function SuppliesPage() {
   const router = useRouter();
@@ -30,6 +32,7 @@ export default function SuppliesPage() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [editingSupply, setEditingSupply] = useState<Supply | null>(null);
   const [selectedSupply, setSelectedSupply] = useState<Supply | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -49,7 +52,7 @@ export default function SuppliesPage() {
   const [transactionData, setTransactionData] = useState({
     quantity: '',
     date: getCurrentDateForAPI(),
-    time: getCurrentTimeForAPI().substring(0, 5), // HH:mm for input
+    time: getCurrentTimeForAPI().substring(0, 5), 
   });
 
   useEffect(() => {
@@ -165,7 +168,7 @@ export default function SuppliesPage() {
     setTransactionData({
       quantity: '',
       date: getCurrentDateForAPI(),
-      time: getCurrentTimeForAPI().substring(0, 5), // HH:mm for input
+      time: getCurrentTimeForAPI().substring(0, 5), 
     });
     setIsTransactionModalOpen(true);
   };
@@ -329,6 +332,10 @@ export default function SuppliesPage() {
       header: 'Actions',
       render: (supply: Supply) => (
         <div className="flex space-x-2">
+          <Button size="sm" variant="outline" onClick={() => handleViewSupply(supply)}>
+            <Eye className="w-4 h-4 mr-1" />
+            View
+          </Button>
           <Button size="sm" variant="secondary" onClick={() => handleOpenModal(supply)}>
             Edit
           </Button>
@@ -349,13 +356,23 @@ export default function SuppliesPage() {
     },
   ];
 
+  const handleViewSupply = (s: Supply) => {
+    setSelectedSupply(s);
+    setIsDetailsOpen(true);
+  };
+
+  const handleCloseDetails = () => {
+    setIsDetailsOpen(false);
+    setSelectedSupply(null);
+  };
+
   if (!isDoctor()) {
     return null;
   }
 
   return (
     <div>
-      {/* Breadcrumb */}
+      {}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center text-sm text-gray-600">
           <span 
@@ -386,7 +403,7 @@ export default function SuppliesPage() {
         </div>
       )}
 
-      {/* Stock Status Stats */}
+      {}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>
           <div className="flex items-center justify-between">
@@ -432,7 +449,7 @@ export default function SuppliesPage() {
         </Card>
       </div>
 
-      {/* Search and Filters */}
+      {}
       <Card className="mb-6">
         <div className="space-y-4">
           <SearchBar
@@ -472,6 +489,8 @@ export default function SuppliesPage() {
         </div>
       </Card>
 
+        {}
+        <SupplyDetailsModal isOpen={isDetailsOpen} onClose={handleCloseDetails} supply={selectedSupply} />
       <Card>
         <Table
           data={filteredSupplies as unknown as Record<string, unknown>[]}
@@ -521,16 +540,16 @@ export default function SuppliesPage() {
             />
           </div>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description (Optional)
-            </label>
-            <textarea
-              name="description"
+            <AIAutoCompleteTextarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Optional details about this supply (e.g., brand, specifications)"
+              onChange={(value) => setFormData({ ...formData, description: value })}
+              placeholder="Optional details about this supply (e.g., brand, specifications, usage notes)"
+              label="Description (Optional)"
+              showAIBadge={true}
+              minChars={10}
+              debounceMs={300}
+              context={`Supply: ${formData.supply_Name || 'new supply'}, Category: ${formData.category || 'uncategorized'}, Unit: ${formData.unit || 'unknown'}`}
               rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 
@@ -597,7 +616,6 @@ export default function SuppliesPage() {
         </form>
       </Modal>
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title="Delete Supply"

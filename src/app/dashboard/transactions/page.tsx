@@ -14,7 +14,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { stockTransactionService, isDoctor, getUserId, supplyService, doctorService } from '@/services';
 import { StockTransaction, ApiError, Supply, Doctor, StockTransactionCreateRequest } from '@/types/api.types';
 import { formatDateForDisplay } from '@/utils/date.utils';
-import { TrendingUp, TrendingDown, Plus, ChevronRight, Filter, Package, AlertTriangle, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Plus, ChevronRight, Filter, Package, AlertTriangle, Clock, FileText, Hash } from 'lucide-react';
 
 export default function TransactionsPage() {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function TransactionsPage() {
     supply_ID: '',
     quantity: '',
   });
-  const LOW_STOCK_THRESHOLD = 10; // Items with quantity <= this are considered low stock
+  const LOW_STOCK_THRESHOLD = 10; 
 
   useEffect(() => {
     if (!isDoctor()) {
@@ -56,10 +56,9 @@ export default function TransactionsPage() {
   }, [filterDoctor, filterSupply]);
 
   useEffect(() => {
-    // Apply search and sort filters to transactions
+    
     let filtered = [...transactions];
 
-    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(t => {
@@ -71,7 +70,6 @@ export default function TransactionsPage() {
       });
     }
 
-    // Apply sorting
     switch (sortBy) {
       case 'date-desc':
         filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -100,8 +98,7 @@ export default function TransactionsPage() {
       ]);
       setSupplies(suppliesData as Supply[]);
       setDoctors(doctorsData as Doctor[]);
-      
-      // Calculate inventory stats
+
       const suppliesArray = suppliesData as Supply[];
       const totalQuantity = suppliesArray.reduce((sum, s) => sum + s.quantity, 0);
       setTotalItems(totalQuantity);
@@ -130,8 +127,7 @@ export default function TransactionsPage() {
       }
 
       setTransactions(data);
-      
-      // Update last transaction date
+
       if (data.length > 0) {
         const lastTx = data.reduce((latest, current) => {
           const currentDate = new Date(current.date);
@@ -188,8 +184,8 @@ export default function TransactionsPage() {
       const requestData: StockTransactionCreateRequest = {
         supply_ID: Number(formData.supply_ID),
         quantity: quantity,
-        date: now.toISOString().split('T')[0], // YYYY-MM-DD
-        time: now.toTimeString().split(' ')[0], // HH:mm:ss
+        date: now.toISOString().split('T')[0], 
+        time: now.toTimeString().split(' ')[0], 
         doctor_ID: getUserId() || 0,
       };
       
@@ -237,7 +233,7 @@ export default function TransactionsPage() {
 
   return (
     <div>
-      {/* Breadcrumb */}
+      {}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center text-sm text-gray-600">
           <span className="hover:text-primary-600 cursor-pointer">Dashboard</span>
@@ -255,7 +251,6 @@ export default function TransactionsPage() {
         </Button>
       </div>
 
-      {/* Page Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
           <Package className="w-8 h-8 text-primary-600" />
@@ -264,7 +259,6 @@ export default function TransactionsPage() {
         <p className="text-gray-600 mt-2">Track usage and deduction of dental supplies from inventory</p>
       </div>
 
-      {/* Alert */}
       {alert && (
         <div className="mb-4">
           <Alert
@@ -275,7 +269,6 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      {/* Inventory Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className="bg-white border border-gray-200">
           <div className="flex items-start justify-between">
@@ -311,14 +304,12 @@ export default function TransactionsPage() {
         </Card>
       </div>
 
-      {/* Transactions Table */}
       <Card>
-        {/* Search and Filter Controls */}
         <div className="mb-6 space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
+              <div className="flex-1">
               <SearchBar 
-                placeholder="🔍 Search transactions..."
+                placeholder="Search transactions..."
                 value={searchQuery}
                 onChange={setSearchQuery}
               />
@@ -337,7 +328,6 @@ export default function TransactionsPage() {
             </select>
           </div>
 
-          {/* Additional Filters */}
           <div className="flex flex-col sm:flex-row gap-3">
             <select
               value={filterDoctor}
@@ -367,14 +357,12 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        {/* Table Header */}
         <div className="mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <span>📋</span> Recent Transactions
+            <FileText className="w-4 h-4 text-gray-500" /> Recent Transactions
           </h3>
         </div>
 
-        {/* Data Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -429,7 +417,7 @@ export default function TransactionsPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
-                            // TODO: Implement view details modal
+                            
                             showAlert('success', 'View details modal coming soon!');
                           }}
                           className="px-3 py-1 text-xs font-medium text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded transition"
@@ -451,7 +439,6 @@ export default function TransactionsPage() {
           </table>
         </div>
 
-        {/* Table Footer */}
         {filteredTransactions.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between text-sm text-gray-600">
             <span>Showing {filteredTransactions.length} of {transactions.length} transactions</span>
@@ -459,7 +446,6 @@ export default function TransactionsPage() {
         )}
       </Card>
 
-      {/* Add Transaction Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -471,7 +457,7 @@ export default function TransactionsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Supply <span className="text-red-500">*</span>
             </label>
-            <p className="text-xs text-gray-500 mb-2">📦 Select the supply item for this transaction (current stock shown)</p>
+            <p className="text-xs text-gray-500 mb-2"><Package className="inline w-4 h-4 mr-1 text-gray-400" /> Select the supply item for this transaction (current stock shown)</p>
             <select
               name="supply_ID"
               value={formData.supply_ID}
@@ -492,7 +478,7 @@ export default function TransactionsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Quantity <span className="text-red-500">*</span>
             </label>
-            <p className="text-xs text-gray-500 mb-2">🔢 Enter the number of units to deduct from inventory (must be at least 1)</p>
+            <p className="text-xs text-gray-500 mb-2"><Hash className="inline w-4 h-4 mr-1 text-gray-400" /> Enter the number of units to deduct from inventory (must be at least 1)</p>
             <Input
               type="number"
               name="quantity"
@@ -505,8 +491,9 @@ export default function TransactionsPage() {
           </div>
 
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <strong>ℹ️ Note:</strong> This transaction will deduct the specified quantity from the selected supply's current stock.
+            <p className="text-sm text-blue-800 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-blue-700" />
+              <strong>Note:</strong> This transaction will deduct the specified quantity from the selected supply&apos;s current stock.
             </p>
           </div>
 
@@ -521,7 +508,6 @@ export default function TransactionsPage() {
         </form>
       </Modal>
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title="Delete Transaction"

@@ -11,7 +11,7 @@ import Input from '@/components/Input';
 import Alert from '@/components/Alert';
 import { doctorService, nurseService, appointmentService, ehrService } from '@/services';
 import { useAuth } from '@/contexts/AuthContext';
-import { Doctor, Nurse, ApiError } from '@/types/api.types';
+import { Doctor, Nurse, ApiError, getNurseId } from '@/types/api.types';
 
 export default function StaffPage() {
   const { isDoctor } = useAuth();
@@ -128,7 +128,7 @@ export default function StaffPage() {
             phone: formData.phone,
             email: formData.email,
           };
-          await nurseService.updateNurse((editingItem as Nurse).nursE_ID, updateData);
+          await nurseService.updateNurse(getNurseId(editingItem as Nurse), updateData);
           showAlert('success', 'Nurse updated successfully');
         } else {
           await nurseService.createNurse(formData);
@@ -145,7 +145,7 @@ export default function StaffPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      // Check for appointments assigned to this nurse
+      
       const allAppointments = await appointmentService.getAllAppointments();
       const nurseAppointments = allAppointments.filter(apt => apt.nurse_ID === id);
       
@@ -229,7 +229,7 @@ export default function StaffPage() {
           <Button 
             size="sm" 
             variant="danger" 
-            onClick={() => handleDelete(nurse.nursE_ID)}
+            onClick={() => handleDelete(getNurseId(nurse))}
           >
             Delete
           </Button>
@@ -315,7 +315,7 @@ export default function StaffPage() {
             name="name"
             value={formData.name}
             onChange={handleChange}
-            placeholder={activeTab === 'doctors' ? 'e.g., Dr. John Smith' : 'e.g., Jane Smith'}
+            placeholder={activeTab === 'doctors' ? 'e.g., Dr. Ahmed Hassan' : 'e.g., Fatima Ali'}
             required
           />
           <Input
@@ -357,7 +357,6 @@ export default function StaffPage() {
         </form>
       </Modal>
 
-      {/* Doctor Details Modal */}
       <DoctorDetailsModal
         isOpen={isDoctorDetailsModalOpen}
         doctor={selectedDoctor}
@@ -368,7 +367,6 @@ export default function StaffPage() {
         }}
       />
 
-      {/* Nurse Details Modal */}
       <NurseDetailsModal
         isOpen={isNurseDetailsModalOpen}
         nurse={selectedNurse}
