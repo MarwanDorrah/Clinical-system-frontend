@@ -41,7 +41,7 @@ export interface PatientCreateRequest {
   middle?: string | null;
   last: string;
   gender: string;
-  dob: string; // Format: YYYY-MM-DD
+  dob: string; 
   phone?: string | null;
 }
 
@@ -51,7 +51,7 @@ export interface PatientUpdateRequest {
   middle?: string | null;
   last: string;
   gender: string;
-  dob: string; // Format: YYYY-MM-DD
+  dob: string; 
   phone?: string | null;
 }
 
@@ -64,7 +64,7 @@ export interface Doctor {
 
 export interface Nurse {
   nursE_ID: number;
-  nurse_ID?: number; // Alias for convenience
+  nurse_ID?: number; 
   name: string;
   phone: string;
   email: string;
@@ -89,7 +89,7 @@ export interface Appointment {
 
 export interface CreateAppointmentRequest {
   date: string;
-  time: string; // Format: "HH:mm:ss"
+  time: string; 
   type: string;
   patient_ID: number;
   doctor_ID: number;
@@ -99,7 +99,7 @@ export interface CreateAppointmentRequest {
 export interface UpdateAppointmentRequest {
   appointment_ID: number;
   date: string;
-  time: string; // Format: "HH:mm:ss"
+  time: string; 
   type: string;
   patient_ID: number;
   doctor_ID: number;
@@ -134,8 +134,10 @@ export interface Procedure {
   Description?: string;
   performedAt?: string;
   PerformedAt?: string;
-  toothNumber?: string;
-  ToothNumber?: string;
+  toothNumber?: number;
+  ToothNumber?: number;
+  toothName?: string;
+  ToothName?: string;
   status?: string;
   Status?: string;
   notes?: string;
@@ -144,9 +146,11 @@ export interface Procedure {
 
 export interface ToothRecord {
   ToothRecord_ID?: number;
-  toothRecord_ID?: number; // Alias for compatibility
+  toothRecord_ID?: number; 
   toothNumber?: number;
-  ToothNumber: number;
+  ToothNumber?: number;
+  toothName?: string;
+  ToothName?: string;
   condition?: string;
   Condition?: string;
   treatmentPlanned?: string;
@@ -207,13 +211,15 @@ export interface ProcedureRecordDto {
   code: string;
   description: string;
   performedAt: string;
-  toothNumber?: string;
+  toothNumber?: number;
+  toothName?: string;
   status?: string;
   notes?: string;
 }
 
 export interface ToothRecordDto {
   toothNumber: number;
+  toothName?: string;
   condition?: string;
   treatmentPlanned?: string;
   treatmentCompleted?: string;
@@ -254,7 +260,7 @@ export interface EHRUpdateRequest extends EHRCreateRequest {
 
 export interface EHR {
   ehr_ID?: number;
-  EHR_ID?: number; // Backend uses PascalCase
+  EHR_ID?: number; 
   allergies?: string;
   Allergies?: string;
   medicalAlerts?: string;
@@ -340,8 +346,8 @@ export interface StockTransactionCreateRequest {
   date: string;
   time: string;
   quantity: number;
-  doctor_ID: number; // Required
-  supply_ID: number; // Required
+  doctor_ID: number; 
+  supply_ID: number; 
 }
 
 export interface StockTransactionUpdateRequest {
@@ -368,4 +374,58 @@ export interface ApiError {
   error: string;
   details?: string[];
   hint?: string;
+}
+
+export interface AIAutoCompleteRequest {
+  partialText: string;
+  context?: string;
+}
+
+export interface AIAutoCompleteResponse {
+  suggestions: string[];
+}
+
+export interface AITerminologyRequest {
+  partialTerm: string;
+}
+
+export interface AITerminologyResponse {
+  suggestions: string[];
+}
+
+export interface AIGenerateNotesRequest {
+  bulletPoints: string;
+  patientContext?: string;
+}
+
+export interface AIGenerateNotesResponse {
+  generatedNotes: string;
+}
+
+export interface AISuggestTreatmentsRequest {
+  diagnosis: string;
+  patientHistory?: string;
+}
+
+export interface AISuggestTreatmentsResponse {
+  treatments: string[];
+}
+
+export interface AIExtractClinicalDataRequest {
+  freeText: string;
+}
+
+export interface AIExtractClinicalDataResponse {
+  diagnosis?: string;
+  symptoms?: string[];
+  treatments?: string[];
+  periodontalStatus?: string;
+  medications?: string[];
+  affectedTeeth?: number[];
+  allergies?: string;
+  medicalAlerts?: string;
+  medicalHistory?: string;
+  xRayFindings?: string;
+  clinicalNotes?: string;
+  recommendations?: string;
 }

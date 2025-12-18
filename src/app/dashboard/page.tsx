@@ -10,7 +10,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { patientService, appointmentService, supplyService, ehrService } from '@/services';
 import { Appointment, Supply, Patient, EHR } from '@/types/api.types';
 import { formatDateForDisplay, formatTimeForDisplay } from '@/utils/date.utils';
-import { Users, Calendar, Clock, Package, AlertTriangle, TrendingUp, ChevronRight, CheckCircle, Bell, User, FileText, Plus, Eye } from 'lucide-react';
+import { getEhrId } from '@/utils/ehr.utils';
+import { Users, Calendar, Clock, Package, AlertTriangle, TrendingUp, ChevronRight, CheckCircle, Bell, User, FileText, Plus, Eye, Brain, X } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
   const [weekAppointments, setWeekAppointments] = useState<Record<string, Appointment[]>>({});
   const [recentEHRs, setRecentEHRs] = useState<any[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [lowStockSupplies, setLowStockSupplies] = useState<Supply[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [notifications, setNotifications] = useState<Array<{id: number, type: string, message: string, time: string}>>([]);
@@ -37,8 +39,9 @@ export default function DashboardPage() {
     try {
       setIsLoading(true);
 
-      const patients = await patientService.getAllPatients();
-      
+      const patientsRes = await patientService.getAllPatients() as Patient[];
+      setPatients(Array.isArray(patientsRes) ? patientsRes : []);
+
       const appointments = await appointmentService.getAllAppointments() as Appointment[];
       
       const todayDate = new Date();
@@ -51,11 +54,13 @@ export default function DashboardPage() {
       });
       
       if (todayAppts.length === 0 && appointments.length > 0) {
+        const now = new Date();
         const upcoming = appointments
-          .filter(apt => apt.date)
+          .filter(apt => apt.date && apt.time)
+          .filter(apt => new Date(`${apt.date.split('T')[0]} ${apt.time}`) >= now)
           .sort((a, b) => {
-            const dateA = new Date(a.date + ' ' + a.time);
-            const dateB = new Date(b.date + ' ' + b.time);
+            const dateA = new Date(`${a.date.split('T')[0]} ${a.time}`);
+            const dateB = new Date(`${b.date.split('T')[0]} ${b.time}`);
             return dateA.getTime() - dateB.getTime();
           })
           .slice(0, 6);
@@ -118,7 +123,7 @@ export default function DashboardPage() {
       }).length;
 
       setStats({
-        totalPatients: Array.isArray(patients) ? patients.length : 0,
+        totalPatients: Array.isArray(patientsRes) ? patientsRes.length : 0,
         totalAppointments: appointments.length,
         todayAppointments: todayAppts.length,
         completedToday,
@@ -172,28 +177,40 @@ export default function DashboardPage() {
     return 'upcoming';
   };
 
+  const formatRef = (apt: Appointment) => {
+    if (apt.ref_Num && apt.ref_Num.trim()) return apt.ref_Num;
+    const id = apt.appointment_ID ? String(apt.appointment_ID).padStart(3, '0') : '000';
+    return `APT-${id}`;
+  };
+
+  const handleDismissNotification = (id: number) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
   if (isLoading) {
     return <LoadingSpinner fullScreen message="Loading dashboard..." />;
   }
 
   return (
     <div className="space-y-6">
-      {/* Header Section with Profile and Notifications */}
+      {}
       <div className="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl p-6 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center font-bold text-blue-600 text-2xl shadow-lg">
-              {userName?.charAt(0).toUpperCase() || 'D'}
+              {userName?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="text-white">
-              <h1 className="text-2xl font-bold">Dr. {userName}</h1>
+              <h1 className="text-2xl font-bold">
+                {isDoctor() ? 'Dr. ' : 'Nurse '}{userName || 'User'}
+              </h1>
               <p className="text-blue-100">{getCurrentDate()}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Notifications Section */}
+      {}
       {notifications.length > 0 && (
         <div className="space-y-2">
           {notifications.map((notif) => (
@@ -217,17 +234,28 @@ export default function DashboardPage() {
                 )}
                 <span className="text-sm font-medium text-gray-900">{notif.message}</span>
               </div>
-              <span className={`text-xs font-medium ${
-                notif.type === 'error' ? 'text-red-600' : 'text-gray-500'
-              }`}>
-                {notif.time}
-              </span>
+              <div className="flex items-center gap-3">
+                <span
+                  className={`text-xs font-medium ${
+                    notif.type === 'error' ? 'text-red-600' : 'text-gray-500'
+                  }`}
+                >
+                  {notif.time}
+                </span>
+                <button
+                  onClick={() => handleDismissNotification(notif.id)}
+                  className="p-1 rounded hover:bg-white/60 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  aria-label="Dismiss notification"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Calendar (Appointments) Section */}
+      {}
       <Card>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900 flex items-center">
@@ -260,6 +288,8 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {todayAppointments.map((appointment) => {
               const status = getAppointmentStatus(appointment);
+              const patient = patients.find(p => p.patient_ID === appointment.patient_ID);
+              const patientName = patient ? `${patient.first} ${patient.last || ''}`.trim() : '';
               return (
                 <div
                   key={appointment.appointment_ID}
@@ -287,7 +317,8 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <p className="font-semibold text-gray-900">{appointment.type}</p>
-                  <p className="text-sm text-gray-600">Ref: {appointment.ref_Num}</p>
+                  {patientName && <p className="text-sm text-gray-700">Patient: {patientName}</p>}
+                  <p className="text-sm text-gray-600">Ref: {formatRef(appointment)}</p>
                   <p className="text-xs text-gray-500 mt-1">
                     {formatDateForDisplay(appointment.date)}
                   </p>
@@ -298,7 +329,7 @@ export default function DashboardPage() {
         )}
       </Card>
 
-      {/* Recently Viewed EHRs Section */}
+      {}
       <Card>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900 flex items-center">
@@ -321,35 +352,100 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {recentEHRs.map((ehr) => (
-              <div
-                key={ehr.EHR_ID}
-                className="bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl hover:shadow-md transition-all cursor-pointer border border-blue-200"
-                onClick={() => router.push(`/dashboard/ehr/${ehr.EHR_ID}`)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="font-bold text-gray-900 mb-1">
-                      Patient ID: {ehr.patient_ID}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {formatDateForDisplay(ehr.date)}
-                    </p>
-                    {ehr.diagnosis && (
-                      <p className="text-xs text-gray-500 mt-2 line-clamp-2">
-                        {ehr.diagnosis}
-                      </p>
-                    )}
+            {recentEHRs.map((ehr) => {
+              const id = getEhrId(ehr);
+              const patientName = ehr.patient?.first || ehr.patient?.last
+                ? `${ehr.patient?.first || ''} ${ehr.patient?.last || ''}`.trim()
+                : `Patient ID: ${ehr.patient_ID}`;
+              const dateSource = ehr.date || ehr.updatedAt || ehr.createdAt;
+              const dateLabel = formatDateForDisplay(dateSource as string);
+              const isClickable = id > 0;
+
+              const handleClick = () => {
+                if (!isClickable) return;
+                router.push(`/dashboard/ehr/${id}`);
+              };
+
+              return (
+                <div
+                  key={id || `ehr-${ehr.patient_ID}`}
+                  className={`bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl transition-all border border-blue-200 ${
+                    isClickable ? 'hover:shadow-md cursor-pointer' : 'cursor-not-allowed opacity-70'
+                  }`}
+                  onClick={handleClick}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900 mb-1">{patientName}</p>
+                      <p className="text-sm text-gray-600">{dateLabel}</p>
+                      {ehr.diagnosis && (
+                        <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                          {ehr.diagnosis}
+                        </p>
+                      )}
+                    </div>
+                    <Eye className="w-5 h-5 text-blue-600" />
                   </div>
-                  <Eye className="w-5 h-5 text-blue-600" />
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
 
-      {/* Quick Actions Section */}
+      {}
+      {isDoctor() && (
+        <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+              <Brain className="w-6 h-6 mr-3 text-purple-600" />
+              Clinical Decision Support
+            </h2>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => router.push('/dashboard/clinical-decision-support')}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              Open Tool
+            </Button>
+          </div>
+          <p className="text-gray-700 mb-4">
+            Access clinical decision support tools for diagnosis assistance, treatment planning, and evidence-based recommendations.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-purple-600" />
+                </div>
+                <span className="font-semibold text-gray-900">Diagnosis Support</span>
+              </div>
+              <p className="text-sm text-gray-600">Get assistance with differential diagnosis</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-purple-600" />
+                </div>
+                <span className="font-semibold text-gray-900">Treatment Planning</span>
+              </div>
+              <p className="text-sm text-gray-600">Evidence-based treatment recommendations</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Brain className="w-5 h-5 text-purple-600" />
+                </div>
+                <span className="font-semibold text-gray-900">Clinical Guidance</span>
+              </div>
+              <p className="text-sm text-gray-600">Access clinical best practices</p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {}
       <Card>
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -357,14 +453,14 @@ export default function DashboardPage() {
             <>
               <button
                 onClick={() => router.push('/dashboard/supplies?action=add')}
-                className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
+                className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
               >
                 <Package className="w-8 h-8" />
                 <span className="font-semibold">New Supply Order</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/supplies')}
-                className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
+                className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
               >
                 <Package className="w-8 h-8" />
                 <span className="font-semibold">Check Stock</span>
@@ -380,7 +476,7 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => router.push('/dashboard/appointments?action=add')}
-            className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
+            className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3"
           >
             <Calendar className="w-8 h-8" />
             <span className="font-semibold">Schedule Follow-up</span>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Activity } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,7 +25,7 @@ export default function LoginPage() {
   const [sessionMessage, setSessionMessage] = useState('');
 
   useEffect(() => {
-    // Check for redirect reason
+    
     const reason = searchParams?.get('reason');
     if (reason === 'session_expired') {
       setSessionMessage('Your session has expired due to inactivity. Please login again.');
@@ -63,16 +64,18 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-10">
-        {/* Logo/Header - Centered */}
+        {}
         <div className="text-center mb-8">
-          <div className="text-6xl mb-3">🦷</div>
+          <div className="mb-3">
+            <Activity className="w-14 h-14 mx-auto text-primary-600" />
+          </div>
           <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-wide">
             DENTAL CLINIC
           </h1>
           <p className="text-gray-600 mt-1 text-sm">Information System</p>
         </div>
 
-        {/* User Type Tabs */}
+        {}
         <div className="flex border-b border-gray-200 mb-8">
           <button
             type="button"
@@ -98,25 +101,26 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* Error Alert */}
+        {}
         {error && (
           <div className="mb-6">
-            <Alert type="error" message={error} onClose={() => setError('')} />
+            <Alert type="error" message={error} onClose={() => setError('')} autoClose={false} />
           </div>
         )}
 
-        {/* Session Message */}
+        {}
         {sessionMessage && (
           <div className="mb-6">
             <Alert 
               type={sessionMessage.includes('successfully') ? 'success' : 'error'} 
               message={sessionMessage} 
-              onClose={() => setSessionMessage('')} 
+              onClose={() => setSessionMessage('')}
+              autoClose={false}
             />
           </div>
         )}
 
-        {/* Login Form */}
+        {}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -126,7 +130,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="doctor@clinic.com"
+              placeholder="yourmail@clinic.com"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               required
             />
@@ -169,7 +173,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        {/* Register Links */}
+        {}
         <div className="mt-6 text-center space-y-2">
           {userType === 'doctor' ? (
             <p className="text-sm text-gray-600">

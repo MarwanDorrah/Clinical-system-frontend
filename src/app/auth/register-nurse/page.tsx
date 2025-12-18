@@ -20,6 +20,7 @@ export default function RegisterNursePage() {
     phone: '',
     password: '',
     confirmPassword: '',
+    registrationKey: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,7 +35,6 @@ export default function RegisterNursePage() {
     setError('');
     setSuccess('');
 
-    // Validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -42,6 +42,11 @@ export default function RegisterNursePage() {
 
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters long');
+      return;
+    }
+
+    if (!formData.registrationKey || formData.registrationKey.trim().length === 0) {
+      setError('Registration key is required');
       return;
     }
 
@@ -60,6 +65,7 @@ export default function RegisterNursePage() {
         email: registerData.email,
         phone: registerData.phone,
         password: registerData.password,
+        registrationKey: formData.registrationKey,
       });
       
       setSuccess('Registration successful! Logging you in...');
@@ -83,7 +89,7 @@ export default function RegisterNursePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full bg-white rounded-xl shadow-2xl p-8">
-        {/* Logo/Header */}
+        {}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -94,19 +100,19 @@ export default function RegisterNursePage() {
           <p className="text-gray-600 mt-2">Register as a Nurse</p>
         </div>
 
-        {/* Error/Success Alert */}
+        {}
         {error && (
           <div className="mb-4">
-            <Alert type="error" message={error} onClose={() => setError('')} />
+            <Alert type="error" message={error} onClose={() => setError('')} autoClose={false} />
           </div>
         )}
         {success && (
           <div className="mb-4">
-            <Alert type="success" message={success} />
+            <Alert type="success" message={success} autoClose={false} onClose={() => setSuccess('')} />
           </div>
         )}
 
-        {/* Register Form */}
+        {}
         <form onSubmit={handleSubmit}>
           <Input
             label="Full Name"
@@ -114,7 +120,7 @@ export default function RegisterNursePage() {
             name="name"
             value={formData.name}
             onChange={handleChange}
-            placeholder="Jane Smith"
+            placeholder="Fatima Ali"
             required
           />
 
@@ -124,7 +130,7 @@ export default function RegisterNursePage() {
             name="email"
             value={formData.email}
             onChange={handleChange}
-            placeholder="jane.smith@clinic.com"
+            placeholder="yourmail@clinic.com"
             required
           />
 
@@ -135,6 +141,16 @@ export default function RegisterNursePage() {
             value={formData.phone}
             onChange={handleChange}
             placeholder="123-456-7890"
+            required
+          />
+
+          <Input
+            label="Registration Key"
+            type="password"
+            name="registrationKey"
+            value={formData.registrationKey}
+            onChange={handleChange}
+            placeholder="Enter your registration key"
             required
           />
 
@@ -168,7 +184,7 @@ export default function RegisterNursePage() {
           </Button>
         </form>
 
-        {/* Login Links */}
+        {}
         <div className="mt-6 text-center space-y-2">
           <p className="text-sm text-gray-600">
             Already have an account?{' '}

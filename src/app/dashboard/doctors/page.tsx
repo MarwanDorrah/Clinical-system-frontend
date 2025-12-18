@@ -100,26 +100,22 @@ export default function DoctorsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate name
     const nameError = validateMinLength(formData.name, 2, 'Name');
     if (nameError) {
       showAlert('error', nameError);
       return;
     }
 
-    // Validate email
     if (!validateEmail(formData.email)) {
       showAlert('error', 'Please enter a valid email address');
       return;
     }
 
-    // Validate phone
     if (!validatePhone(formData.phone)) {
       showAlert('error', 'Phone must be in format: XXX-XXX-XXXX');
       return;
     }
 
-    // Validate password for new doctors
     if (!editingDoctor) {
       const passwordValidation = validatePassword(formData.password);
       if (!passwordValidation.valid) {
@@ -197,7 +193,6 @@ export default function DoctorsPage() {
 
   return (
     <div>
-      {/* Breadcrumb */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center text-sm text-gray-600">
           <span className="hover:text-primary-600 cursor-pointer">Dashboard</span>
@@ -213,7 +208,6 @@ export default function DoctorsPage() {
         </Button>
       </div>
 
-      {/* Page Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
           <Stethoscope className="w-8 h-8 text-primary-600" />
@@ -222,7 +216,6 @@ export default function DoctorsPage() {
         <p className="text-gray-600 mt-2">Manage doctor information and profiles</p>
       </div>
 
-      {/* Alert */}
       {alert && (
         <div className="mb-4">
           <Alert
@@ -233,7 +226,6 @@ export default function DoctorsPage() {
         </div>
       )}
 
-      {/* Doctors Table */}
       <Card>
         <div className="mb-4 flex justify-end">
           <Button onClick={() => handleOpenModal()} icon={<Plus className="w-4 h-4" />}>
@@ -248,8 +240,7 @@ export default function DoctorsPage() {
           emptyMessage="No doctors found. Add your first doctor to get started."
         />
       </Card>
-
-      {/* Add/Edit Doctor Modal */}
+     
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -262,7 +253,7 @@ export default function DoctorsPage() {
             name="name"
             value={formData.name}
             onChange={handleChange}
-            placeholder="e.g., Dr. John Smith"
+            placeholder="e.g., Dr. Ahmed Hassan"
             required
           />
           <Input
@@ -280,7 +271,7 @@ export default function DoctorsPage() {
             type="email"
             value={formData.email}
             onChange={handleChange}
-            placeholder="e.g., doctor@clinic.com"
+            placeholder="e.g., ahmed.hassan@clinic.com"
             required
           />
           {!editingDoctor && (
@@ -303,8 +294,7 @@ export default function DoctorsPage() {
           </div>
         </form>
       </Modal>
-
-      {/* Doctor Details Modal */}
+     
       <DoctorDetailsModal
         isOpen={isDoctorDetailsModalOpen}
         doctor={selectedDoctor}

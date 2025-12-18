@@ -3,19 +3,26 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-gray-50 text-gray-900 antialiased;
-  }
-  
-  /* Ensure proper text sizing on mobile */
   html {
+    height: 100%;
+    overflow: hidden;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
   
-  /* Smooth scrolling */
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+  
   * {
     scroll-behavior: smooth;
+  }
+  
+  body.modal-open {
+    overflow: hidden;
   }
 }
 
@@ -35,7 +42,36 @@
     }
   }
   
-  /* Responsive text truncation */
+  .animate-slide-down {
+    animation: slide-down 0.2s ease-out;
+  }
+  
+  @keyframes slide-down {
+    from {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+  
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
   .truncate-2-lines {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -52,13 +88,11 @@
     text-overflow: ellipsis;
   }
   
-  /* Better touch targets for mobile */
   .touch-target {
     min-height: 44px;
     min-width: 44px;
   }
   
-  /* Hide scrollbar but keep functionality */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -68,7 +102,6 @@
     display: none;
   }
   
-  /* Custom scrollbar styling */
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -110,7 +143,6 @@
     @apply block text-sm font-medium text-gray-700 mb-2;
   }
   
-  /* Responsive grid helpers */
   .grid-responsive {
     @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6;
   }
@@ -119,8 +151,22 @@
     @apply grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6;
   }
   
-  /* Responsive flex helpers */
   .flex-responsive {
     @apply flex flex-col sm:flex-row gap-4;
+  }
+}
+@media print {
+  body {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  
+  aside, nav, header, footer, .sidebar, .no-print {
+    display: none !important;
+  }
+  
+  .print-layout-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }

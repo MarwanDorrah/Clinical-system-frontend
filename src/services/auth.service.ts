@@ -88,19 +88,11 @@ export function isDoctor(): boolean {
   return payload?.role === 'Doctor' || payload?.UserType === 'Doctor';
 }
 
-/**
- * Checks if the current user is a nurse
- * @returns true if user is a nurse, false otherwise
- */
 export function isNurse(): boolean {
   const payload = decodeToken();
   return payload?.role === 'Nurse' || payload?.UserType === 'Nurse';
 }
 
-/**
- * Gets the current user's ID (doctor or nurse)
- * @returns user ID or null if not authenticated
- */
 export function getUserId(): number | null {
   const payload = decodeToken();
   if (!payload?.sub) return null;
@@ -109,11 +101,6 @@ export function getUserId(): number | null {
   return isNaN(userId) ? null : userId;
 }
 
-/**
- * Gets the stored doctor ID from localStorage
- * This is a fallback for when the token doesn't contain the DoctorId claim
- * @returns doctor ID or null if not a doctor or not found
- */
 export function getStoredDoctorId(): number | null {
   if (typeof window === 'undefined') return null;
   
@@ -124,10 +111,6 @@ export function getStoredDoctorId(): number | null {
   return isNaN(id) ? null : id;
 }
 
-/**
- * Gets the current user's role
- * @returns 'doctor', 'nurse', or null if not authenticated
- */
 export function getUserRole(): 'doctor' | 'nurse' | null {
   const payload = decodeToken();
   if (!payload) return null;
@@ -138,37 +121,21 @@ export function getUserRole(): 'doctor' | 'nurse' | null {
   return null;
 }
 
-/**
- * Gets the current user's name from token
- * @returns user name or null if not authenticated
- */
 export function getUserName(): string | null {
   const payload = decodeToken();
   return payload?.name || null;
 }
 
-/**
- * Gets the current user's email from token
- * @returns user email or null if not authenticated
- */
 export function getUserEmail(): string | null {
   const payload = decodeToken();
   return payload?.email || null;
 }
 
-/**
- * Checks if user is authenticated (has valid token)
- * @returns true if authenticated, false otherwise
- */
 export function isAuthenticated(): boolean {
   const payload = decodeToken();
   return payload !== null;
 }
 
-/**
- * Logout and clear all authentication data
- * @param redirect - whether to redirect to login page
- */
 export function logout(redirect: boolean = true): void {
   clearAuthStorage();
   
@@ -177,10 +144,6 @@ export function logout(redirect: boolean = true): void {
   }
 }
 
-/**
- * Validate token structure and claims
- * @returns object with isValid flag and error message if invalid
- */
 export function validateToken(): { isValid: boolean; error?: string } {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   
@@ -194,22 +157,18 @@ export function validateToken(): { isValid: boolean; error?: string } {
     return { isValid: false, error: 'Invalid token format' };
   }
 
-  // Check expiration
   if (payload.exp && payload.exp * 1000 < Date.now()) {
     return { isValid: false, error: 'Token expired' };
   }
 
-  // Validate required claims - check for sub (user ID) and either role or UserType
   if (!payload.sub) {
     return { isValid: false, error: 'Missing user ID claim' };
   }
 
-  // Check if at least one role claim exists (role or UserType)
   if (!payload.role && !payload.UserType) {
     return { isValid: false, error: 'Missing role claim' };
   }
 
-  // Validate issuer and audience (from API config) - make optional as some tokens might not include these
   if (payload.iss && payload.iss !== 'ClinicalDentistSystem') {
     console.warn('Token issuer mismatch:', payload.iss);
   }
@@ -221,10 +180,6 @@ export function validateToken(): { isValid: boolean; error?: string } {
   return { isValid: true };
 }
 
-/**
- * Get all token information for debugging
- * WARNING: Do not expose sensitive data in production
- */
 export function getTokenInfo(): {
   payload: TokenPayload | null;
   expiresAt: Date | null;
@@ -256,11 +211,6 @@ export function getTokenInfo(): {
   };
 }
 
-/**
- * Diagnostic function to check if token has doctor claim
- * The backend might be looking for a specific doctor ID claim
- * @returns object with diagnostic information
- */
 export function getDoctorClaimDiagnostics(): {
   hasDoctorClaim: boolean;
   doctorId: number | null;
@@ -288,7 +238,6 @@ export function getDoctorClaimDiagnostics(): {
   const userId = parseInt(payload.sub, 10);
   const isDoctorRole = payload.role === 'Doctor' || payload.UserType === 'Doctor';
   
-  // Check for standard doctor ID claim (might not exist in current token structure)
   const hasDoctorIdClaim = 'DoctorId' in payload || 'doctorId' in payload;
   
   if (!hasDoctorIdClaim) {

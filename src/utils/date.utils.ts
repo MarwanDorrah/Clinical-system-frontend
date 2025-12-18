@@ -20,8 +20,10 @@ export const formatDateTimeForAPI = (date: Date | string): string => {
   return d.toISOString().slice(0, 19);
 };
 
-export const formatDateForDisplay = (date: string): string => {
+export const formatDateForDisplay = (date: string | null | undefined): string => {
+  if (!date) return 'N/A';
   const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return 'N/A';
   return d.toLocaleDateString();
 };
 

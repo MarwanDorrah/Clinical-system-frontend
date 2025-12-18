@@ -24,7 +24,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [isAuthenticated, router]);
 
-  // Set sidebar open by default on desktop, closed on mobile
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
@@ -39,7 +38,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Update clock every second
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -71,22 +69,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Token Expiration Warning */}
+    <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
+      {}
       <TokenExpirationWarning />
       
-      {/* Sidebar Component */}
-      <Sidebar isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
+      {}
+      <div className="no-print">
+        <Sidebar isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
+      </div>
 
-      {/* Main Content */}
+      {}
       <div
-        className={`transition-all duration-300 ${
+        className={`flex-1 flex flex-col transition-all duration-300 ${
           isSidebarOpen ? 'md:ml-64' : 'md:ml-20'
-        }`}
+        } overflow-hidden`}
       >
-        {/* Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-30 shadow-sm">
-          {/* Mobile menu button */}
+        {}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 shadow-sm flex-shrink-0 no-print">
+          {}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
@@ -95,7 +95,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <Menu className="w-5 h-5 text-gray-700" />
           </button>
 
-          {/* Clock - hidden on mobile, visible on desktop */}
+          {}
           <div className="hidden lg:flex items-center flex-1 justify-center">
             <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-cyan-50 px-4 py-2 rounded-lg border border-blue-100">
               <Clock className="w-4 h-4 text-blue-600 flex-shrink-0" />
@@ -106,7 +106,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
 
-          {/* User info - Responsive */}
+          {}
           <div className="flex items-center gap-3 ml-auto">
             <div className="text-right hidden md:block">
               <p className="text-sm font-medium text-gray-900 truncate max-w-[150px]">{userName}</p>
@@ -118,11 +118,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
-        {/* Page Content with responsive padding */}
-        <main className="p-4 md:p-6 lg:p-8 min-h-[calc(100vh-4rem)]">
-          <PageTransition>
-            {children}
-          </PageTransition>
+        {}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="p-4 md:p-6 lg:p-8">
+            <PageTransition>
+              {children}
+            </PageTransition>
+          </div>
         </main>
       </div>
     </div>

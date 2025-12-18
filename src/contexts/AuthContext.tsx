@@ -17,7 +17,7 @@ interface AuthContextType {
   userName: string | null;
   userId: string | null;
   token: string | null;
-  tokenExpiresIn: number; // milliseconds
+  tokenExpiresIn: number; 
   isTokenExpiringSoon: boolean;
   login: (token: string, role: UserRole, name: string, id: string) => void;
   logout: () => void;
@@ -39,7 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Refresh authentication status and token expiration
   const refreshAuthStatus = () => {
     const storedToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
     
@@ -50,18 +49,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Validate token - but only log warnings, don't force logout during refresh
     const validation = validateToken();
     if (!validation.isValid) {
       console.warn('Token validation warning:', validation.error);
-      // Only logout if token is actually expired, not for other validation issues
+      
       if (validation.error?.includes('expired')) {
         logout();
         return;
       }
     }
 
-    // Update expiration info
     const remaining = getTokenTimeRemaining();
     setTokenExpiresIn(remaining);
     setTokenExpiringSoon(isTokenExpiringSoon(5));
@@ -70,14 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Check if user is already logged in
+    
     const storedToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
     const storedRole = localStorage.getItem(STORAGE_KEYS.USER_ROLE) as UserRole;
     const storedName = localStorage.getItem(STORAGE_KEYS.USER_NAME);
     const storedId = localStorage.getItem(STORAGE_KEYS.USER_ID);
 
     if (storedToken && storedRole && storedName && storedId) {
-      // Validate token before restoring session
+      
       const validation = validateToken();
       
       if (validation.isValid) {
@@ -88,60 +85,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated(true);
         refreshAuthStatus();
       } else {
-        // Invalid token, clear storage
+        
         console.warn('Stored token invalid on load:', validation.error);
         authLogout(false);
       }
     }
     setIsLoading(false);
 
-    // Set up interval to check token expiration every minute
     const interval = setInterval(() => {
       if (checkAuth()) {
         refreshAuthStatus();
-        
-        // Auto-logout if token expired
+
         if (getTokenTimeRemaining() <= 0) {
           console.warn('Token expired, logging out');
           logout();
         }
       }
-    }, 60000); // Check every minute
+    }, 60000); 
 
     return () => clearInterval(interval);
   }, []);
 
   const login = (token: string, role: UserRole, name: string, id: string) => {
-    // Store token and user info
+    
     localStorage.setItem(STORAGE_KEYS.TOKEN, token);
     localStorage.setItem(STORAGE_KEYS.USER_ROLE, role);
     localStorage.setItem(STORAGE_KEYS.USER_NAME, name);
     localStorage.setItem(STORAGE_KEYS.USER_ID, id);
-    
-    // Store doctor ID separately for doctors (same as userId for doctors)
+
     if (role === 'Doctor') {
       localStorage.setItem(STORAGE_KEYS.DOCTOR_ID, id);
     }
 
-    // Debug: Log token payload to verify claims
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      console.log('🔐 Login successful - Token payload:', {
+      console.log('Login successful - Token payload:', {
         sub: payload.sub,
         role: payload.role,
         UserType: payload.UserType,
         name: payload.name,
         email: payload.email,
-        // Check if backend included DoctorId claim
+        
         DoctorId: payload.DoctorId || 'NOT IN TOKEN',
         doctorId: payload.doctorId || 'NOT IN TOKEN',
         exp: new Date(payload.exp * 1000).toISOString(),
       });
-      
-      // Warn if DoctorId is missing from token
+
       if (role === 'Doctor' && !payload.DoctorId && !payload.doctorId) {
-        console.warn('⚠️ Token does not contain DoctorId claim. Backend may fail to authorize EHR updates.');
-        console.warn('💡 Stored doctorId in localStorage as fallback:', id);
+        console.warn('Token does not contain DoctorId claim. Backend may fail to authorize EHR updates.');
+        console.warn('Stored doctorId in localStorage as fallback:', id);
       }
     } catch (e) {
       console.error('Failed to decode token for debugging');
@@ -153,8 +145,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserId(id);
     setIsAuthenticated(true);
 
-    // Set initial token expiration info without validation
-    // Token is guaranteed valid since we just received it from the server
     const remaining = getTokenTimeRemaining();
     setTokenExpiresIn(remaining);
     setTokenExpiringSoon(isTokenExpiringSoon(5));
@@ -163,13 +153,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    // Clear storage using auth service
-    authLogout(false);
     
-    // Also clear doctor ID
+    authLogout(false);
+
     localStorage.removeItem(STORAGE_KEYS.DOCTOR_ID);
 
-    // Reset state
     setToken(null);
     setUserRole(null);
     setUserName(null);

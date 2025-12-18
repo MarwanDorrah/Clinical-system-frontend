@@ -1,6 +1,6 @@
 
 export const API_CONFIG = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7000',
+  BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7044',
   ENDPOINTS: {
     DOCTOR_REGISTER: '/api/DoctorAuth/Register',
     DOCTOR_LOGIN: '/api/DoctorAuth/Login',
@@ -43,7 +43,7 @@ export const STORAGE_KEYS = {
   USER_ROLE: 'userRole',
   USER_NAME: 'userName',
   USER_ID: 'userId',
-  DOCTOR_ID: 'doctorId', // Store doctor ID separately for API calls
+  DOCTOR_ID: 'doctorId', 
 };
 
 export const USER_ROLES = {
