@@ -81,7 +81,7 @@ export const TOOTH_NAMES: Record<number, string> = {
 export default function ToothChart({
   selectedTeeth,
   onToothClick,
-  notation = 'FDI',
+  notation = 'fdi',
   readonly = false,
 }: ToothChartProps) {
   const [hoveredTooth, setHoveredTooth] = useState<number | null>(null);
