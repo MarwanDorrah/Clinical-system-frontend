@@ -17,6 +17,7 @@ export interface RegisterDoctorRequest {
   phone: string;
   email: string;
   password: string;
+  registrationKey?: string;
 }
 
 export interface RegisterNurseRequest {
