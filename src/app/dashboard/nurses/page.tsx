@@ -329,7 +329,10 @@ export default function NursesPage() {
               try {
                 const allEhrs = await ehrService.getAllEHRs();
                 const appointmentIds = new Set(nurseAppointments.map(a => a.appointment_ID).filter(Boolean));
-                const linkedEhrs = allEhrs.filter(ehr => appointmentIds.has(ehr.appointmentId || ehr.AppointmentId));
+                const linkedEhrs = allEhrs.filter(ehr => {
+                  const ehrAppointmentId = ehr.appointmentId || ehr.AppointmentId;
+                  return ehrAppointmentId !== undefined && appointmentIds.has(ehrAppointmentId);
+                });
 
                 if (linkedEhrs.length > 0) {
                   showAlert('error', `Cannot delete nurse. ${linkedEhrs.length} EHR record(s) are linked to appointments assigned to this nurse.`);
