@@ -1045,7 +1045,7 @@ export default function AppointmentsPage() {
             
             {formData.type !== 'Other' && (
               <p className="mt-1 text-xs text-gray-500">
-                Common types available, or select "Other" for custom type
+                Common types available, or select &quot;Other&quot; for custom type
               </p>
             )}
           </div>

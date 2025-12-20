@@ -1030,7 +1030,6 @@ export default function EditEHRPage() {
                               placeholder="e.g., Amalgam filling"
                               label="Treatment Planned"
                               showAIBadge={true}
-                              label=""
                               minChars={5}
                               debounceMs={300}
                               context={getPatientContext(tooth.toothNumber)}
